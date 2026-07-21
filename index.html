@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台股全方位戰情室 (V26)</title>
+<style>
+body{margin:0;padding:20px;background:#121212;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;color:#ddd}
+.main-controls{margin-bottom:15px;display:flex;gap:10px;justify-content:center;align-items:center;background:#1e1e1e;padding:10px 20px;border-radius:8px;border:1px solid #333}
+input[type="text"]{padding:8px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;text-align:center;width:100px;font-weight:bold}
+#stock-name-display{font-size:1.1rem;color:#26a69a;font-weight:bold;margin-right:10px;min-width:80px;text-align:center}
+button.search-btn{padding:8px 16px;border-radius:4px;border:none;background:#f50057;color:#fff;cursor:pointer;font-weight:bold}
+button.search-btn:hover{background:#c51162}
+.tabs{display:flex;width:95%;border-bottom:1px solid #444}
+.tab{padding:10px 20px;cursor:pointer;background:#1e1e1e;color:#888;border:1px solid #444;border-bottom:none;margin-right:5px;border-radius:5px 5px 0 0;transition:all .2s}
+.tab.active{background:#2d2d2d;color:#26a69a;font-weight:bold;border-bottom:1px solid #2d2d2d;margin-bottom:-1px}
+.content-area{width:95%;height:75vh;border:1px solid #444;background:#1e1e1e;position:relative;display:none}
+.content-area.active{display:block}
+#view-trend{display:none;flex-direction:column}
+#view-trend.active{display:flex}
+.trend-controls{padding:10px;border-bottom:1px solid #333;display:flex;gap:15px;align-items:center;flex-wrap:wrap;background:#252525;height:45px}
+.split-chart-container{flex:1;width:100%;position:relative;border-bottom:1px solid #333}
+.chart-label{position:absolute;top:10px;left:10px;z-index:5;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:4px;font-size:.8rem;color:#aaa;pointer-events:none}
+.ma-legend{position:absolute;top:10px;left:180px;right:auto;background:rgba(30,30,30,.9);border:1px solid #444;border-radius:4px;padding:4px 10px;display:flex;align-items:center;gap:12px;z-index:20;white-space:nowrap}
+.ma-item{display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer;user-select:none;font-family:'Segoe UI Mono',monospace}
+.ma-item input[type="checkbox"]{cursor:pointer;margin:0;width:12px;height:12px;accent-color:#555}
+.ma-clear-btn{background:#333;border:1px solid #555;color:#ccc;border-radius:3px;cursor:pointer;font-size:.75rem;padding:2px 8px}
+.ma-clear-btn:hover{background:#f50057;color:#fff;border-color:#f50057}
+.settings-btn{background:transparent;border:none;cursor:pointer;padding:0 0 0 10px;display:flex;align-items:center;color:#aaa;border-left:1px solid #555;height:16px}
+.settings-btn:hover{color:#fff}
+.settings-btn svg{width:14px;height:14px;fill:currentColor}
+/* 週期切換 (日/週/月) */
+.tf-group{position:absolute;top:10px;left:56px;z-index:30;background:rgba(30,30,30,.92);border:1px solid #444;border-radius:6px;display:flex;gap:4px;padding:4px}
+.tf-btn{width:36px;height:28px;background:transparent;border:1px solid transparent;border-radius:4px;color:#aaa;cursor:pointer;font-size:.85rem;transition:all .15s}
+.tf-btn:hover{background:#333;color:#fff}
+.tf-btn.active{background:#26a69a;color:#fff;font-weight:bold}
+/* 畫圖工具列 (V24：可收合 + 釘選) */
+.draw-toolbar{position:absolute;top:10px;left:10px;z-index:30;background:rgba(30,30,30,.92);border:1px solid #444;border-radius:6px;display:flex;flex-direction:column;gap:4px;padding:6px}
+.draw-toolbar-header{display:flex;gap:2px;justify-content:center;padding-bottom:4px;margin-bottom:2px;border-bottom:1px solid #444}
+.draw-toolbar.collapsed .draw-toolbar-header{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.tb-mini-btn{width:16px;height:16px;background:transparent;border:none;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px}
+.tb-mini-btn:hover{color:#fff;background:#333}
+.tb-mini-btn.active{color:#26a69a}
+.tb-mini-btn svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;transition:transform .15s}
+.draw-toolbar.collapsed .tb-collapse-icon{transform:rotate(180deg)}
+.draw-toolbar-body{display:flex;flex-direction:column;gap:4px}
+.draw-toolbar.collapsed .draw-toolbar-body{display:none}
+.draw-tool-btn{width:34px;height:34px;background:transparent;border:1px solid transparent;border-radius:4px;cursor:pointer;color:#aaa;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.draw-tool-btn:hover{background:#333;color:#fff}
+.draw-tool-btn.active{background:#26a69a;color:#fff}
+.draw-tool-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6}
+.draw-tool-btn.danger:hover{background:#f50057}
+#draw-canvas{position:absolute;top:0;left:0;z-index:15;pointer-events:none}
+#draw-canvas.drawing{pointer-events:auto;cursor:crosshair}
+/* 圖形屬性面板 */
+.shape-panel{position:absolute;top:86px;left:56px;z-index:40;background:rgba(30,30,30,.97);border:1px solid #555;border-radius:6px;padding:10px;display:none;flex-direction:column;gap:8px;font-size:.85rem;box-shadow:0 4px 12px rgba(0,0,0,.6);max-width:220px}
+.shape-panel.show{display:flex}
+.sp-row{display:flex;align-items:center;gap:8px}
+.sp-row label{color:#aaa;min-width:36px}
+.sp-fib-levels{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
+.sp-fib-levels label{display:flex;align-items:center;gap:4px;cursor:pointer;color:#ccc;font-family:monospace}
+.sp-del-btn{background:#442;background:#552233;border:1px solid #f50057;color:#ff8ab0;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:.8rem}
+.sp-del-btn:hover{background:#f50057;color:#fff}
+.sp-width-input{width:44px;padding:3px;background:#333;border:1px solid #555;color:#fff;border-radius:4px;text-align:center}
+.sp-style-group{display:flex;gap:4px}
+.sp-style-btn{width:34px;height:26px;background:#333;border:1px solid #555;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.sp-style-btn svg{width:22px;height:8px}
+.sp-style-btn line{stroke:#ccc;stroke-width:2}
+.sp-style-btn.active{border-color:#26a69a;background:#26a69a22}
+.sp-style-btn.active line{stroke:#26a69a}
+.sp-check-row{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+.sp-check-row input{cursor:pointer}
+.sp-opacity-row input[type="range"]{flex:1;accent-color:#26a69a}
+.sp-opacity-val{width:34px;text-align:right;color:#ccc;font-family:monospace;font-size:.8rem}
+/* 自動比例 A 按鈕 */
+.autoscale-btn{position:absolute;right:2px;bottom:2px;z-index:25;width:26px;height:26px;background:rgba(30,30,30,.9);border:1px solid #555;border-radius:4px;color:#aaa;cursor:pointer;font-weight:bold;font-size:14px;display:flex;align-items:center;justify-content:center}
+.autoscale-btn:hover{background:#26a69a;color:#fff;border-color:#26a69a}
+/* V24：OHLC 資訊列 */
+.ohlc-info{position:absolute;top:46px;left:56px;z-index:24;background:rgba(20,20,20,.72);border-radius:4px;padding:4px 10px;font-size:.8rem;font-family:'Segoe UI Mono',monospace;display:flex;gap:12px;align-items:center;pointer-events:none;white-space:nowrap}
+.ohlc-info .oi-label{color:#888;margin-right:2px}
+.ohlc-info .oi-val{font-weight:bold}
+.ohlc-info .oi-name{color:#ddd;font-weight:bold;margin-right:4px}
+/* V24：截圖按鈕 */
+.screenshot-btn{position:absolute;top:10px;right:6px;z-index:25;width:30px;height:30px;background:rgba(30,30,30,.9);border:1px solid #555;border-radius:4px;color:#aaa;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.screenshot-btn:hover{background:#26a69a;color:#fff;border-color:#26a69a}
+.screenshot-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
+/* V24：均線 同步/週期 切換小按鈕 */
+.ma-sync-btn{background:#333;border:1px solid #555;color:#ccc;border-radius:3px;cursor:pointer;font-size:.75rem;padding:2px 8px;white-space:nowrap}
+.ma-sync-btn.active{background:#26a69a;color:#fff;border-color:#26a69a}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;display:none;justify-content:center;align-items:center}
+.modal-content{background:#252525;padding:20px;border-radius:8px;border:1px solid #444;width:560px;color:#ddd}
+.modal-title{font-size:1.1rem;margin-bottom:15px;font-weight:bold;color:#fff;text-align:center}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.form-group{margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.form-group label{font-size:.9rem;color:#aaa;width:40px}
+.form-row{display:flex;gap:5px;align-items:center;flex:1}
+.ma-width-input{width:36px;padding:5px;background:#333;border:1px solid #555;color:#fff;border-radius:4px;text-align:center}
+.modal-sync-row{display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:15px;padding-bottom:12px;border-bottom:1px solid #444;color:#ccc;font-size:.9rem;cursor:pointer;user-select:none}
+.form-input{width:50px;padding:5px;background:#333;border:1px solid #555;color:#fff;border-radius:4px;text-align:center}
+.color-picker{width:30px;height:30px;padding:0;border:none;background:none;cursor:pointer}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.btn-cancel{background:#444;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer}
+.btn-save{background:#26a69a;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer}
+/* Tooltip / 其他 */
+.floating-tooltip{width:160px;position:absolute;display:none;padding:10px;box-sizing:border-box;font-size:13px;z-index:1000;pointer-events:none;background:rgba(20,20,20,.95);border:1px solid #444;border-radius:6px;color:#ddd;font-family:monospace}
+.tooltip-date{font-weight:bold;border-bottom:1px solid #555;margin-bottom:8px;padding-bottom:4px;text-align:center;color:#fff}
+.tooltip-investor-block{margin-bottom:8px;padding-left:8px;border-left:3px solid transparent}
+.investor-name{font-weight:bold;margin-bottom:2px}
+.investor-row{display:flex;justify-content:space-between;font-size:12px}
+.val-up{color:#ff5252;font-weight:bold}.val-down{color:#00e676;font-weight:bold}.val-neu{color:#aaa}
+.row-label{color:#888;margin-right:5px}
+.date-group{display:flex;align-items:center;gap:5px}
+.date-group input{background:#333;border:1px solid #555;color:#fff;padding:5px;border-radius:4px}
+.checkbox-group{display:flex;gap:15px;align-items:center;margin-left:20px;border-left:1px solid #444;padding-left:20px}
+.checkbox-item{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;font-size:.9rem}
+.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.table-wrapper{width:100%;height:100%;overflow-y:auto;padding:10px;box-sizing:border-box}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{padding:12px 8px;text-align:right;border-bottom:1px solid #333}
+th{background:#2a2a2a;color:#aaa;position:sticky;top:0;z-index:10}
+th:first-child,td:first-child{text-align:left;color:#ddd}
+.up{color:#ff5252}.down{color:#00e676}.neutral{color:#888}
+.status-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;pointer-events:none;display:none}
+#chart-container,#trend-k-container,#trend-algo-container{width:100%;height:100%}
+/* V25：雲端同步 */
+.sync-btn{padding:8px 12px;border-radius:4px;border:1px solid #555;background:#2a2a2a;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:.85rem}
+.sync-btn:hover{background:#333;color:#fff}
+.sync-btn.connected{border-color:#26a69a;color:#26a69a}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#666;flex-shrink:0}
+.sync-btn.connected .sync-dot{background:#26a69a;box-shadow:0 0 4px #26a69a}
+.sync-modal-body textarea{width:100%;height:120px;background:#1a1a1a;border:1px solid #555;color:#ddd;border-radius:4px;padding:8px;font-family:monospace;font-size:.8rem;box-sizing:border-box;resize:vertical}
+.sync-modal-body .sync-status-line{margin-bottom:10px;padding:8px 10px;border-radius:4px;background:#1a1a1a;font-size:.85rem;color:#ccc}
+.sync-modal-body .sync-help{font-size:.78rem;color:#888;line-height:1.6;margin:10px 0}
+.sync-modal-body .sync-help a{color:#4dabf7}
+.sync-modal-actions{display:flex;justify-content:space-between;gap:10px;margin-top:14px}
+.sync-banner{position:fixed;top:0;left:0;right:0;z-index:3000;background:#1565c0;color:#fff;padding:8px 16px;display:none;align-items:center;justify-content:center;gap:14px;font-size:.9rem;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.sync-banner button{padding:4px 12px;border-radius:4px;border:none;cursor:pointer;font-weight:bold}
+.sync-banner .sb-apply{background:#fff;color:#1565c0}
+.sync-banner .sb-dismiss{background:transparent;color:#cfe3ff;border:1px solid #cfe3ff!important}
+</style>
+</head>
+<body>
+
+<div class="sync-banner" id="sync-banner">
+    <span>☁ 偵測到其他裝置上傳的新資料</span>
+    <button class="sb-apply" onclick="location.reload()">重新整理套用</button>
+    <button class="sb-dismiss" onclick="document.getElementById('sync-banner').style.display='none'">忽略</button>
+</div>
+
+<div class="main-controls">
+    <label>股票：</label>
+    <input type="text" id="stock-symbol" value="2330">
+    <span id="stock-name-display"></span>
+    <button class="search-btn" onclick="fetchData()">查詢</button>
+    <button class="sync-btn" id="sync-btn" onclick="openSyncModal()" title="設定跨裝置雲端同步">
+        <span class="sync-dot" id="sync-dot"></span><span id="sync-btn-label">雲端同步</span>
+    </button>
+</div>
+
+<div class="tabs">
+    <div class="tab active" onclick="switchTab('chart')">K 線圖 (全覽)</div>
+    <div class="tab" onclick="switchTab('table')">三大法人明細</div>
+    <div class="tab" onclick="switchTab('trend')">趨勢透視 (雙圖)</div>
+</div>
+
+<div id="view-chart" class="content-area active">
+    <div class="draw-toolbar" id="draw-toolbar">
+        <div class="draw-toolbar-header">
+            <button class="tb-mini-btn" id="toolbar-pin-btn" onclick="toggleToolbarPin()" title="釘選：固定收合/展開狀態">
+                <svg viewBox="0 0 24 24"><path d="M12 2 L12 10 M8 6 L16 6 M6 10 L18 10 L15 14 L15 20 L9 20 L9 14 Z" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
+            <button class="tb-mini-btn" id="toolbar-collapse-btn" onclick="toggleToolbarCollapse()" title="收合/展開工具列">
+                <svg class="tb-collapse-icon" viewBox="0 0 24 24"><path d="M15 5 L8 12 L15 19" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+        <div class="draw-toolbar-body" id="draw-toolbar-body">
+            <button class="draw-tool-btn active" id="tool-cursor" onclick="setTool(null)" title="游標 (選取/拖曳/平移)">
+                <svg viewBox="0 0 24 24"><path d="M5 3 L11 21 L13.5 13.5 L21 11 Z"/></svg></button>
+            <button class="draw-tool-btn" id="tool-hline" onclick="setTool('hline')" title="水平線">
+                <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><circle cx="12" cy="12" r="2.5"/></svg></button>
+            <button class="draw-tool-btn" id="tool-trend" onclick="setTool('trend')" title="趨勢線 (按住 Shift 可鎖定水平)">
+                <svg viewBox="0 0 24 24"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="4" r="2"/></svg></button>
+            <button class="draw-tool-btn" id="tool-rect" onclick="setTool('rect')" title="矩形框">
+                <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12"/></svg></button>
+            <button class="draw-tool-btn" id="tool-fib" onclick="setTool('fib')" title="費波那契回撤">
+                <svg viewBox="0 0 24 24"><line x1="3" y1="5" x2="21" y2="5"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="3" y1="20" x2="21" y2="20"/></svg></button>
+            <button class="draw-tool-btn danger" onclick="clearDrawings()" title="清除全部圖形">
+                <svg viewBox="0 0 24 24"><path d="M5 7 H19 M9 7 V4 H15 V7 M7 7 L8 20 H16 L17 7"/></svg></button>
+        </div>
+    </div>
+
+    <!-- 週期快速切換 -->
+    <div class="tf-group">
+        <button class="tf-btn active" id="tf-D" onclick="setTimeframe('D')" title="日線">日</button>
+        <button class="tf-btn" id="tf-W" onclick="setTimeframe('W')" title="週線">週</button>
+        <button class="tf-btn" id="tf-M" onclick="setTimeframe('M')" title="月線">月</button>
+    </div>
+
+    <!-- 選取圖形後的屬性面板 -->
+    <div class="shape-panel" id="shape-panel">
+        <div class="sp-row"><label>顏色</label><input type="color" id="sp-color" class="color-picker" onchange="spApply()"></div>
+        <div class="sp-row"><label>線寬</label><input type="number" id="sp-width" class="sp-width-input" min="1" max="6" step="0.5" onchange="spApply()"></div>
+        <div class="sp-row"><label>樣式</label>
+            <div class="sp-style-group" id="sp-style-group">
+                <button type="button" class="sp-style-btn" data-style="solid" onclick="spSetStyle('solid')" title="實線">
+                    <svg viewBox="0 0 22 8"><line x1="0" y1="4" x2="22" y2="4"/></svg></button>
+                <button type="button" class="sp-style-btn" data-style="dashed" onclick="spSetStyle('dashed')" title="虛線">
+                    <svg viewBox="0 0 22 8"><line x1="0" y1="4" x2="22" y2="4" stroke-dasharray="4,3"/></svg></button>
+                <button type="button" class="sp-style-btn" data-style="dotted" onclick="spSetStyle('dotted')" title="點線">
+                    <svg viewBox="0 0 22 8"><line x1="0" y1="4" x2="22" y2="4" stroke-dasharray="1.5,3" stroke-linecap="round"/></svg></button>
+            </div>
+        </div>
+        <div class="sp-row sp-opacity-row" id="sp-opacity-row" style="display:none">
+            <label>透明</label><input type="range" id="sp-opacity" min="10" max="100" step="5" oninput="spApply()"><span class="sp-opacity-val" id="sp-opacity-val">100%</span>
+        </div>
+        <label class="sp-check-row sp-row" id="sp-fill-row" style="display:none">
+            <input type="checkbox" id="sp-fill" onchange="spApply()"><span>顯示背景</span>
+        </label>
+        <div class="sp-row" id="sp-fib-row" style="display:none;flex-direction:column;align-items:flex-start">
+            <label style="margin-bottom:4px">費波係數</label>
+            <div class="sp-fib-levels" id="sp-fib-levels"></div>
+        </div>
+        <div class="sp-row">
+            <button class="sp-del-btn" onclick="deleteSelected()">刪除此圖形 (Del)</button>
+        </div>
+    </div>
+
+    <div class="ma-legend" id="ma-legend-container"></div>
+    <div class="ohlc-info" id="ohlc-info"></div>
+    <button class="screenshot-btn" onclick="screenshotChart()" title="截圖並儲存">
+        <svg viewBox="0 0 24 24"><path d="M4 8 L7 8 L8.5 5.5 L15.5 5.5 L17 8 L20 8 A1 1 0 0 1 21 9 L21 18 A1 1 0 0 1 20 19 L4 19 A1 1 0 0 1 3 18 L3 9 A1 1 0 0 1 4 8 Z" stroke-linejoin="round"/><circle cx="12" cy="13.5" r="3.5"/></svg></button>
+    <div id="chart-container"></div>
+    <canvas id="draw-canvas"></canvas>
+    <button class="autoscale-btn" onclick="autoScalePrice()" title="自動調整K棒比例">A</button>
+    <div id="msg-chart" class="status-msg">請點擊查詢</div>
+</div>
+
+<div id="view-table" class="content-area">
+    <div class="table-wrapper">
+        <table id="investor-table">
+            <thead><tr><th width="20%">日期</th><th width="20%">外資</th><th width="20%">投信</th><th width="20%">自營商</th><th width="20%">合計</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    <div id="msg-table" class="status-msg">資料讀取中...</div>
+</div>
+
+<div id="view-trend" class="content-area">
+    <div class="trend-controls">
+        <div class="date-group">
+            <span>區間：</span><input type="date" id="start-date"><span>至</span><input type="date" id="end-date">
+            <button class="search-btn" style="padding:4px 10px;font-size:.8rem" onclick="updateTrendCharts()">套用區間</button>
+        </div>
+        <div class="checkbox-group">
+            <label class="checkbox-item"><span class="legend-dot" style="background:#2962ff"></span><input type="checkbox" id="cb-foreign" checked onchange="toggleTrendSeries()"> 外資</label>
+            <label class="checkbox-item"><span class="legend-dot" style="background:#b0279d"></span><input type="checkbox" id="cb-trust" onchange="toggleTrendSeries()"> 投信</label>
+            <label class="checkbox-item"><span class="legend-dot" style="background:#ff6d00"></span><input type="checkbox" id="cb-dealer" onchange="toggleTrendSeries()"> 自營商</label>
+            <label class="checkbox-item"><span class="legend-dot" style="background:#eeeeee"></span><input type="checkbox" id="cb-total" onchange="toggleTrendSeries()"> 合計</label>
+        </div>
+    </div>
+    <div class="split-chart-container"><div class="chart-label">股價走勢</div><div id="trend-k-container"></div></div>
+    <div class="split-chart-container">
+        <div class="chart-label">區間籌碼累計 (移動滑鼠以查看)</div>
+        <div id="trend-algo-container"></div>
+        <div id="trend-tooltip" class="floating-tooltip"></div>
+    </div>
+    <div id="msg-trend" class="status-msg">請先查詢資料</div>
+</div>
+
+<div id="ma-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-title">均線參數設定 (費波那契)</div>
+        <div class="modal-grid">
+            <div><div id="ma-input-container-left"></div></div>
+            <div><div id="ma-input-container-right"></div></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeSettings()">取消</button>
+            <button class="btn-save" onclick="saveSettings()">儲存設定</button>
+        </div>
+    </div>
+</div>
+
+<!-- V25：雲端同步設定視窗 -->
+<div id="sync-modal" class="modal-overlay">
+    <div class="modal-content" style="width:460px">
+        <div class="modal-title">☁ 跨裝置雲端同步 (Firebase)</div>
+        <div class="sync-modal-body">
+            <div class="sync-status-line" id="sync-status-line">尚未設定</div>
+            <textarea id="sync-config-input" placeholder='把 Firebase 主控台「你的應用程式」頁面複製出來的 firebaseConfig 整段貼在這裡，例如：&#10;const firebaseConfig = {&#10;  apiKey: "AIza...",&#10;  authDomain: "xxx.firebaseapp.com",&#10;  databaseURL: "https://xxx-default-rtdb.firebaseio.com",&#10;  projectId: "xxx",&#10;  ...&#10;};'></textarea>
+            <div class="sync-help">
+                1. 到 <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase 主控台</a> 建立免費專案<br>
+                2. 左側選單「Build → Realtime Database」→ 建立資料庫（先選測試模式即可）<br>
+                3. 左上角齒輪「專案設定」→「一般」→ 你的應用程式 → 新增網頁應用程式（&lt;/&gt; 圖示），複製出現的 firebaseConfig 整段貼上方<br>
+                4. 每台電腦都要打開同一個網址，並貼上「同一組」設定，資料才會同步在一起
+            </div>
+            <div class="sync-modal-actions">
+                <button class="btn-cancel" onclick="clearSyncConfig()">清除設定</button>
+                <div style="display:flex;gap:8px">
+                    <button class="btn-cancel" onclick="closeSyncModal()">關閉</button>
+                    <button class="btn-save" onclick="saveSyncConfig()">儲存並連線</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+
+let mainChart, mainSeries, volumeSeries;
+/* ══════════ V22：本地記憶 (localStorage) ══════════ */
+/* ══════════ V25：跨裝置雲端同步 (Firebase Realtime Database) ══════════
+   運作方式：本機 localStorage 仍是「即時、離線可用」的主要儲存（跟以前一樣快）；
+   有設定雲端連線的話，每次寫入會同時鏡射一份到 Firebase；開啟網頁時會去抓一次雲端
+   最新資料，如果跟本機不同，會跳出頂端提示條，讓你手動按「重新整理套用」。
+   這樣設計是為了避免兩台裝置同時操作時互相覆蓋，也不用整個 App 改寫成非同步啟動。 */
+let fbApp = null, fbRoot = null;
+function loadFirebaseConfig() {
+    try { const v = localStorage.getItem('wr_fbConfig'); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+}
+function saveFirebaseConfigRaw(cfg) {
+    try { localStorage.setItem('wr_fbConfig', JSON.stringify(cfg)); } catch (e) {}
+}
+function clearFirebaseConfigRaw() {
+    try { localStorage.removeItem('wr_fbConfig'); } catch (e) {}
+}
+
+const LS = {
+    get(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } },
+    set(k, v)   {
+        try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+        if (fbRoot) fbRoot.child(k).set(v).catch(err => console.error('雲端同步寫入失敗:', err));   // V25
+    }
+};
+let trendKChart, trendKSeries, trendAlgoChart, trendAlgoSeries = {};
+let globalPriceData = [], globalInvestorData = [], investorDateMap = {};
+
+/* V25：把 Firebase 主控台複製出來的 `const firebaseConfig = {...}` 整段文字，寬鬆解析成物件
+   （不要求嚴格 JSON 格式，允許沒加引號的 key、結尾分號等） */
+/* V26 修正：新版 Firebase 主控台複製出來的整段程式碼，開頭通常還有一行
+   import { initializeApp } from "firebase/app";
+   舊的寫法是抓文字裡「第一個 { 到最後一個 }」，結果會連 import 那行的大括號也一起
+   抓進來，導致解析失敗（錯誤訊息會出現 "Unexpected identifier 'from'"）。
+   改成：先定位到 firebaseConfig 這個變數名稱、找到它後面的 "="，再從那之後用
+   正確的大括號配對（而不是文字比對）抓出完整的設定物件，就不會被前面的 import 干擾。 */
+function extractBalancedObject(text, fromIndex) {
+    const start = text.indexOf('{', fromIndex);
+    if (start === -1) return null;
+    let depth = 0;
+    for (let i = start; i < text.length; i++) {
+        if (text[i] === '{') depth++;
+        else if (text[i] === '}') { depth--; if (depth === 0) return text.slice(start, i + 1); }
+    }
+    return null;
+}
+function parseFirebaseConfigInput(text) {
+    text = text || '';
+    let objText = null;
+    const nameIdx = text.indexOf('firebaseConfig');
+    if (nameIdx !== -1) {
+        const eqIdx = text.indexOf('=', nameIdx);
+        if (eqIdx !== -1) objText = extractBalancedObject(text, eqIdx);
+    }
+    if (!objText) objText = extractBalancedObject(text, 0);   // 找不到變數名稱時，退回抓文字裡第一個大括號區塊
+    if (!objText) throw new Error('找不到 { ... } 設定物件，請確認完整貼上');
+    let cfg;
+    try { cfg = new Function('return (' + objText + ')')(); }
+    catch (e) { throw new Error('格式無法解析: ' + e.message); }
+    if (!cfg || !cfg.apiKey || !cfg.databaseURL) throw new Error('缺少 apiKey 或 databaseURL，請確認是 Realtime Database 專案且完整貼上');
+    return cfg;
+}
+function updateSyncStatus(connected) {
+    document.getElementById('sync-btn').classList.toggle('connected', connected);
+    document.getElementById('sync-btn-label').textContent = connected ? '雲端已連線' : '雲端同步';
+}
+function initFirebaseSync() {
+    const cfg = loadFirebaseConfig();
+    if (!cfg) { updateSyncStatus(false); return; }
+    try {
+        fbApp = firebase.apps && firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(cfg);
+        fbRoot = firebase.database().ref('wr_sync');
+        updateSyncStatus(true);
+        pullFromCloud(false);
+    } catch (err) {
+        console.error('Firebase 初始化失敗:', err);
+        updateSyncStatus(false);
+    }
+}
+/* 抓一次雲端最新資料寫回 localStorage；若跟本機不同就跳出頂端提示條（silent=true 時不跳提示，用於背景檢查） */
+async function pullFromCloud(silent) {
+    if (!fbRoot) return;
+    try {
+        const snap = await fbRoot.once('value');
+        const data = snap.val();
+        if (!data) return;
+        let changed = false;
+        Object.keys(data).forEach(k => {
+            const newVal = JSON.stringify(data[k]);
+            if (localStorage.getItem(k) !== newVal) changed = true;
+            try { localStorage.setItem(k, newVal); } catch (e) {}
+        });
+        if (changed && !silent) document.getElementById('sync-banner').style.display = 'flex';
+    } catch (err) {
+        console.error('雲端讀取失敗:', err);
+    }
+}
+/* 把本機目前所有 wr_ 開頭的資料（不含雲端設定本身）整批上傳，用於第一次設定同步時「種」資料到雲端 */
+function pushAllToCloud() {
+    if (!fbRoot) return;
+    const bulk = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('wr_') && k !== 'wr_fbConfig') {
+            try { bulk[k] = JSON.parse(localStorage.getItem(k)); } catch (e) {}
+        }
+    }
+    return fbRoot.update(bulk);
+}
+function openSyncModal() {
+    const cfg = loadFirebaseConfig();
+    document.getElementById('sync-status-line').textContent = cfg
+        ? (fbRoot ? '✅ 已連線，資料會自動同步到雲端' : '⚠️ 已儲存設定但尚未連線成功，請檢查設定內容')
+        : '尚未設定，貼上 Firebase 設定後即可跨裝置同步';
+    document.getElementById('sync-config-input').value = '';
+    document.getElementById('sync-modal').style.display = 'flex';
+}
+function closeSyncModal() { document.getElementById('sync-modal').style.display = 'none'; }
+async function saveSyncConfig() {
+    let cfg;
+    try {
+        cfg = parseFirebaseConfigInput(document.getElementById('sync-config-input').value);
+    } catch (err) {
+        alert('設定格式有誤: ' + err.message);
+        return;
+    }
+    saveFirebaseConfigRaw(cfg);
+    initFirebaseSync();
+    // 若雲端目前是空的（第一台裝置設定同步），把本機現有紀錄當成初始資料上傳
+    try {
+        const snap = await fbRoot.once('value');
+        if (!snap.val()) await pushAllToCloud();
+    } catch (e) { console.error(e); }
+    alert('雲端同步設定成功！其他裝置只要打開同一個網址、貼上「同一組」設定，就會看到相同的紀錄。');
+    closeSyncModal();
+}
+function clearSyncConfig() {
+    if (!confirm('確定要清除這台裝置的雲端同步設定嗎？（本機已存的紀錄不會被刪除，只是不再同步）')) return;
+    clearFirebaseConfigRaw();
+    fbApp = null; fbRoot = null;
+    updateSyncStatus(false);
+    openSyncModal();
+}
+const symbolInput = document.getElementById('stock-symbol');
+const nameDisplay = document.getElementById('stock-name-display');
+const tooltip = document.getElementById('trend-tooltip');
+const maModal = document.getElementById('ma-modal');
+
+/* V24：均線預設參數/顏色調整 — 拿掉MA3，5日橘色，10日沿用原MA34配色，20日(原21)紅色，
+   34日亮綠色，60日(原55)，89日孔雀綠。每條線新增可調的線寬 width。 */
+let maConfig = [
+    { period: 5,  color: '#FF9100', width: 1, series: null, visible: false },
+    { period: 8,  color: '#00E676', width: 1, series: null, visible: false },
+    { period: 10, color: '#00B0FF', width: 1, series: null, visible: false },
+    { period: 20, color: '#FF1744', width: 1, series: null, visible: false },
+    { period: 34, color: '#76FF03', width: 1, series: null, visible: false },
+    { period: 60, color: '#AA00FF', width: 1, series: null, visible: false },
+    { period: 89, color: '#00A99D', width: 1, series: null, visible: false }
+];
+/* V24：均線是否在日/週/月三種週期間同步顯示狀態（開/關 checkbox 是否共用） */
+let maSyncTF = LS.get('wr_maSyncTF', true);
+
+/* V22：載入使用者上次儲存的均線參數（週期/顏色/線寬）— 與「是否勾選顯示」分開儲存 */
+(function loadSavedMA() {
+    const saved = LS.get('wr_maShared', null);
+    // 舊版 (V22/V23) 是 8 條含 MA3；改版後長度不同就不套用，改用新預設值
+    if (Array.isArray(saved) && saved.length === maConfig.length) {
+        saved.forEach((m, i) => {
+            if (!maConfig[i]) return;
+            if (m.period) maConfig[i].period = m.period;
+            if (m.color)  maConfig[i].color  = m.color;
+            if (m.width)  maConfig[i].width  = m.width;
+        });
+    }
+})();
+function persistMAShared() {
+    LS.set('wr_maShared', maConfig.map(c => ({ period: c.period, color: c.color, width: c.width })));
+}
+/* V24：勾選顯示狀態的讀寫；同步模式下三週期共用一份，否則各週期各自獨立 */
+function visibleStorageKey() {
+    return maSyncTF ? 'wr_maVisible_sync' : ('wr_maVisible_' + currentTF);
+}
+function loadMAVisible() {
+    const saved = LS.get(visibleStorageKey(), null);
+    maConfig.forEach((cfg, i) => { cfg.visible = Array.isArray(saved) && saved.length === maConfig.length ? !!saved[i] : false; });
+}
+function persistMAVisible() {
+    LS.set(visibleStorageKey(), maConfig.map(c => c.visible));
+}
+
+/* V22：週期狀態與顯示資料 (globalPriceData 永遠是日線原始資料) */
+let currentTF = LS.get('wr_tf', 'D');
+let displayData = [];
+let currentSymbol = '';
+loadMAVisible();   // 初始載入目前週期對應的勾選狀態（需在 currentTF 宣告之後執行）
+
+function renderMaControls() {
+    const legendContainer = document.getElementById('ma-legend-container');
+    let html = '';
+    maConfig.forEach((cfg, idx) => {
+        html += `<label class="ma-item" style="color:${cfg.color}"><input type="checkbox" id="ma-check-${idx}" ${cfg.visible?'checked':''} onchange="toggleMA(${idx})"><span id="ma-label-${idx}">MA${cfg.period}</span></label>`;
+    });
+    html += `<button class="ma-clear-btn" onclick="clearAllMA()">全消</button>`;
+    html += `<button class="ma-sync-btn" id="ma-sync-btn" onclick="toggleMASync()" title="開啟：日/週/月共用同一組勾選狀態；關閉：各週期可各自勾選不同均線">${maSyncTF ? '週期同步:開' : '週期同步:關'}</button>`;
+    html += `<button class="settings-btn" onclick="openSettings()" title="設定參數"><svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></button>`;
+    legendContainer.innerHTML = html;
+
+    let leftHtml = '', rightHtml = '';
+    const half = Math.ceil(maConfig.length / 2);
+    maConfig.forEach((cfg, idx) => {
+        const h = `<div class="form-group"><label style="color:${cfg.color}">MA${cfg.period}</label><div class="form-row"><input type="number" id="ma-period-${idx}" class="form-input" value="${cfg.period}" title="週期"><input type="color" id="ma-color-${idx}" class="color-picker" value="${cfg.color}" title="顏色"><input type="number" id="ma-width-${idx}" class="ma-width-input" value="${cfg.width || 1}" min="1" max="6" step="0.5" title="線寬"></div></div>`;
+        if (idx < half) leftHtml += h; else rightHtml += h;
+    });
+    document.getElementById('ma-input-container-left').innerHTML = leftHtml;
+    document.getElementById('ma-input-container-right').innerHTML = rightHtml;
+}
+
+function initCharts() {
+    renderMaControls();
+    ['D','W','M'].forEach(t => document.getElementById('tf-' + t).classList.toggle('active', t === currentTF));
+    const commonOptions = {
+        layout: { textColor: '#d1d4dc', background: { type: 'solid', color: '#1e1e1e' } },
+        grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+        handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
+        handleScroll: { mouseWheel: true, pressedMouseMove: true, vertMouseWheel: true },
+        localization: { dateFormat: 'yyyy-MM-dd' },
+        rightPriceScale: { borderColor: '#485c7b', scaleMargins: { top: 0.1, bottom: 0.1 }, autoScale: true },
+        timeScale: { borderColor: '#485c7b', timeVisible: true, rightOffset: 5 },
+    };
+    /* V22 修正：Lightweight Charts 預設 crosshair 是 Magnet 模式，會自動吸附到收盤價，
+       導致游標（與畫圖工具）只能在收盤價上取點。改為 Normal 模式即可在高低點/K棒中間自由取點。 */
+    const kOpts = { ...commonOptions, crosshair: { mode: LightweightCharts.CrosshairMode.Normal, vertLine: { labelVisible: true, visible: true, labelBackgroundColor: '#141414' }, horzLine: { labelVisible: true } } };
+    const aOpts = { ...commonOptions, crosshair: { mode: LightweightCharts.CrosshairMode.Normal, vertLine: { labelVisible: false, visible: true }, horzLine: { labelVisible: true } } };
+
+    mainChart = LightweightCharts.createChart(document.getElementById('chart-container'), kOpts);
+    mainSeries = mainChart.addSeries(LightweightCharts.CandlestickSeries, {
+        upColor: '#ef232a', downColor: '#26a69a', borderVisible: false, wickUpColor: '#ef232a', wickDownColor: '#26a69a'
+    });
+    volumeSeries = mainChart.addSeries(LightweightCharts.HistogramSeries, {
+        priceScaleId: 'vol', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false
+    });
+    mainChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+    mainChart.priceScale('right').applyOptions({ scaleMargins: { top: 0.05, bottom: 0.25 } });
+
+    const maOpts = { priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false };
+    maConfig.forEach(cfg => {
+        cfg.series = mainChart.addSeries(LightweightCharts.LineSeries, { color: cfg.color, visible: cfg.visible, lineWidth: cfg.width || 1, ...maOpts });
+    });
+
+    trendKChart = LightweightCharts.createChart(document.getElementById('trend-k-container'), kOpts);
+    trendKSeries = trendKChart.addSeries(LightweightCharts.CandlestickSeries, {
+        upColor: '#ef232a', downColor: '#26a69a', borderVisible: false, wickUpColor: '#ef232a', wickDownColor: '#26a69a'
+    });
+    trendAlgoChart = LightweightCharts.createChart(document.getElementById('trend-algo-container'), aOpts);
+    trendAlgoSeries['Foreign'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#2962ff', lineWidth: 2 });
+    trendAlgoSeries['Trust'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#b0279d', lineWidth: 2 });
+    trendAlgoSeries['Dealer'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#ff6d00', lineWidth: 2 });
+    trendAlgoSeries['Total'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#eeeeee', lineWidth: 2 });
+
+    window.addEventListener('resize', resizeAllCharts);
+
+    const today = new Date(), past = new Date();
+    past.setDate(today.getDate() - 90);
+    document.getElementById('end-date').value = today.toISOString().split('T')[0];
+    document.getElementById('start-date').value = past.toISOString().split('T')[0];
+
+    trendAlgoChart.subscribeCrosshairMove(param => {
+        if (!param.time || param.point === undefined || !param.point.x || !param.point.y) { tooltip.style.display = 'none'; return; }
+        let dateStr = param.time;
+        if (typeof dateStr === 'object') dateStr = `${dateStr.year}-${String(dateStr.month).padStart(2,'0')}-${String(dateStr.day).padStart(2,'0')}`;
+        const dailyData = investorDateMap[dateStr];
+        if (dailyData) {
+            let html = `<div class="tooltip-date">${dateStr}</div>`;
+            const block = (name, key, cbId, color) => {
+                const cb = document.getElementById(cbId);
+                if (!cb || !cb.checked) return '';
+                const map = { 'cb-foreign': 'Foreign', 'cb-trust': 'Trust', 'cb-dealer': 'Dealer', 'cb-total': 'Total' };
+                const sd = param.seriesData.get(trendAlgoSeries[map[cbId]]);
+                const cumVal = sd ? sd.value : 0, dayVal = dailyData[key];
+                const dc = dayVal > 0 ? 'val-up' : (dayVal < 0 ? 'val-down' : 'val-neu');
+                const cc = cumVal > 0 ? 'val-up' : (cumVal < 0 ? 'val-down' : 'val-neu');
+                return `<div class="tooltip-investor-block" style="border-left-color:${color}"><div class="investor-name" style="color:${color}">${name}</div><div class="investor-row"><span class="row-label">日:</span><span class="${dc}">${fmt(dayVal)}</span></div><div class="investor-row"><span class="row-label">累:</span><span class="${cc}">${fmt(cumVal)}</span></div></div>`;
+            };
+            html += block('外資','Foreign','cb-foreign','#5c92ff') + block('投信','Trust','cb-trust','#e040fb') + block('自營','Dealer','cb-dealer','#ff9e40') + block('合計','Total','cb-total','#fff');
+            tooltip.innerHTML = html;
+            tooltip.style.display = 'block';
+            const container = document.getElementById('trend-algo-container');
+            let left = param.point.x + 15;
+            if (left + tooltip.offsetWidth > container.clientWidth) left = param.point.x - tooltip.offsetWidth - 15;
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = (param.point.y + 15) + 'px';
+        } else tooltip.style.display = 'none';
+    });
+
+    // V24：主圖十字準星移動時，左上角顯示該根K棒的開高低收與成交量
+    mainChart.subscribeCrosshairMove(param => {
+        if (!param || !param.time) { updateOhlcInfo(displayData.length ? displayData[displayData.length - 1] : null); return; }
+        const bar = param.seriesData ? param.seriesData.get(mainSeries) : null;
+        if (bar) {
+            let t = param.time;
+            if (typeof t === 'object') t = `${t.year}-${String(t.month).padStart(2,'0')}-${String(t.day).padStart(2,'0')}`;
+            const match = displayData.find(d => d.time === t);
+            updateOhlcInfo({ time: t, open: bar.open, high: bar.high, low: bar.low, close: bar.close, volume: match ? match.volume : undefined });
+        }
+    });
+
+    initDrawingTools();
+}
+
+/* V24：左上角 開高低收／成交量 資訊列 */
+function updateOhlcInfo(bar) {
+    const el = document.getElementById('ohlc-info');
+    if (!el) return;
+    if (!bar) { el.innerHTML = ''; return; }
+    const up = bar.close >= bar.open;
+    const color = up ? '#ef232a' : '#26a69a';
+    const pct = bar.open ? (((bar.close - bar.open) / bar.open) * 100).toFixed(2) : '0.00';
+    const volTxt = Number.isFinite(bar.volume) ? Math.round(bar.volume / 1000).toLocaleString() + ' 張' : '—';
+    el.innerHTML = `<span class="oi-name">${nameDisplay.textContent || currentSymbol}</span>` +
+        `<span><span class="oi-label">日期</span><span class="oi-val">${bar.time}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">開</span><span class="oi-val">${bar.open.toFixed(2)}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">高</span><span class="oi-val">${bar.high.toFixed(2)}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">低</span><span class="oi-val">${bar.low.toFixed(2)}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">收</span><span class="oi-val">${bar.close.toFixed(2)}</span></span>` +
+        `<span style="color:${color}">${up?'+':''}${pct}%</span>` +
+        `<span><span class="oi-label">量</span><span class="oi-val">${volTxt}</span></span>`;
+}
+
+/* V24：截圖並下載目前K線圖畫面（含K棒/均線/成交量 + 手繪圖形） */
+function screenshotChart() {
+    try {
+        const chartCanvas = mainChart.takeScreenshot();
+        const composite = document.createElement('canvas');
+        composite.width = chartCanvas.width;
+        composite.height = chartCanvas.height;
+        const cctx = composite.getContext('2d');
+        cctx.drawImage(chartCanvas, 0, 0);
+        if (drawCanvas.width > 0 && drawCanvas.height > 0) {
+            cctx.drawImage(drawCanvas, 0, 0, drawCanvas.width, drawCanvas.height, 0, 0, composite.width, composite.height);
+        }
+        const a = document.createElement('a');
+        const label = (nameDisplay.textContent || currentSymbol || 'chart').trim().replace(/[\\/:*?"<>|]/g, '_');
+        const tfName = { D:'日線', W:'週線', M:'月線' }[currentTF] || currentTF;
+        a.href = composite.toDataURL('image/png');
+        a.download = `${label}_${tfName}_${new Date().toISOString().slice(0,10)}.png`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch (err) {
+        console.error('截圖失敗:', err);
+        alert('截圖失敗: ' + err.message);
+    }
+}
+
+/* --- 均線 --- */
+function openSettings() {
+    maConfig.forEach((cfg, idx) => {
+        document.getElementById(`ma-period-${idx}`).value = cfg.period;
+        document.getElementById(`ma-color-${idx}`).value = cfg.color;
+        document.getElementById(`ma-width-${idx}`).value = cfg.width || 1;
+    });
+    maModal.style.display = 'flex';
+}
+function closeSettings() { maModal.style.display = 'none'; }
+function saveSettings() {
+    maConfig.forEach((cfg, idx) => {
+        cfg.period = parseInt(document.getElementById(`ma-period-${idx}`).value) || cfg.period;
+        cfg.color = document.getElementById(`ma-color-${idx}`).value;
+        cfg.width = parseFloat(document.getElementById(`ma-width-${idx}`).value) || 1;
+        if (displayData.length > 0) {
+            cfg.series.setData(calculateSMA(displayData, cfg.period));
+            cfg.series.applyOptions({ color: cfg.color, lineWidth: cfg.width });
+        }
+        document.getElementById(`ma-label-${idx}`).textContent = `MA${cfg.period}`;
+        document.getElementById(`ma-label-${idx}`).parentNode.style.color = cfg.color;
+    });
+    persistMAShared();   // V24：記憶均線週期/顏色/線寬（與勾選狀態分開儲存）
+    closeSettings();
+}
+function toggleMA(idx) {
+    const checked = document.getElementById(`ma-check-${idx}`).checked;
+    maConfig[idx].visible = checked;
+    maConfig[idx].series.applyOptions({ visible: checked });
+    persistMAVisible();   // V24：依目前「是否同步週期」寫入對應的勾選記憶
+}
+function clearAllMA() {
+    maConfig.forEach((cfg, idx) => {
+        cfg.visible = false;
+        document.getElementById(`ma-check-${idx}`).checked = false;
+        if (cfg.series) cfg.series.applyOptions({ visible: false });
+    });
+    persistMAVisible();   // V24
+}
+/* V24：切換「日/週/月 是否共用同一組均線勾選狀態」 */
+function toggleMASync() {
+    maSyncTF = !maSyncTF;
+    LS.set('wr_maSyncTF', maSyncTF);
+    if (maSyncTF) {
+        // 切成同步：把目前這個週期正在顯示的勾選狀態，設為往後三個週期共用的狀態
+        LS.set('wr_maVisible_sync', maConfig.map(c => c.visible));
+    } else {
+        // 切成各自獨立：讓 日/週/月 三組都先繼承目前的勾選狀態，避免切換當下畫面突然變動
+        const cur = maConfig.map(c => c.visible);
+        ['D','W','M'].forEach(tf => LS.set('wr_maVisible_' + tf, cur));
+    }
+    renderMaControls();
+    // 重新綁定 checkbox 的 onchange（renderMaControls 已用 innerHTML 覆寫）
+    maConfig.forEach((cfg, idx) => {
+        cfg.series.applyOptions({ visible: cfg.visible });
+    });
+}
+function calculateSMA(data, count) {
+    const result = [];
+    for (let i = count - 1; i < data.length; i++) {
+        let sum = 0;
+        for (let j = i - count + 1; j <= i; j++) sum += data[j].close;
+        result.push({ time: data[i].time, value: sum / count });
+    }
+    return result;
+}
+
+/* --- 自動比例 A 按鈕 (V22：強制重算，先關再開才會確實觸發) --- */
+function autoScalePrice() {
+    const ps = mainChart.priceScale('right');
+    ps.applyOptions({ autoScale: false });
+    requestAnimationFrame(() => {
+        ps.applyOptions({ autoScale: true });
+        redrawDrawings();
+    });
+}
+
+/* --- V22：週期切換 (日/週/月) --- */
+function aggregateData(data, tf) {
+    if (tf === 'D') return data.slice();
+    const buckets = {}, order = [];
+    data.forEach(d => {
+        let key;
+        if (tf === 'W') {
+            const dt = new Date(d.time + 'T00:00:00');
+            const dow = (dt.getDay() + 6) % 7;          // 週一為 0
+            dt.setDate(dt.getDate() - dow);             // 該週的週一
+            key = dt.toISOString().split('T')[0];
+        } else {
+            key = d.time.slice(0, 7);                   // YYYY-MM
+        }
+        if (!buckets[key]) {
+            buckets[key] = { time: d.time, open: d.open, high: d.high, low: d.low, close: d.close, volume: d.volume || 0 };
+            order.push(key);
+        } else {
+            const b = buckets[key];
+            b.high = Math.max(b.high, d.high);
+            b.low  = Math.min(b.low, d.low);
+            b.close = d.close;
+            b.volume += (d.volume || 0);
+        }
+    });
+    return order.map(k => buckets[k]);
+}
+
+/* V22 修正：某些個股（低流動性、當日暫停交易、除權息造成欄位缺漏等）FinMind 會回傳
+   open/high/low/close 為 null 或重複日期，Lightweight Charts 遇到這種資料會直接丟出例外、
+   導致整張圖表「靜默失敗」不顯示任何K棒（但只要 2330 這種資料乾淨的權值股就不會遇到）。
+   這裡統一做資料清洗：過濾掉不合法的值、依日期排序並去重複，再交給圖表渲染。 */
+function sanitizePriceData(data) {
+    const seen = new Set();
+    return data
+        .filter(d => d && d.time &&
+            Number.isFinite(d.open) && Number.isFinite(d.high) &&
+            Number.isFinite(d.low)  && Number.isFinite(d.close))
+        .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
+        .filter(d => (seen.has(d.time) ? false : (seen.add(d.time), true)));
+}
+
+function applyPriceData(fit = true) {
+    const agg = aggregateData(globalPriceData, currentTF);
+    displayData = sanitizePriceData(agg);
+    const msgEl = document.getElementById('msg-chart');
+    if (!displayData.length) {
+        msgEl.textContent = '此標的無有效K線資料（可能是資料來源缺漏或代碼錯誤）';
+        msgEl.style.display = 'block';
+        mainSeries.setData([]); volumeSeries.setData([]);
+        maConfig.forEach(cfg => cfg.series.setData([]));
+        return;
+    }
+    try {
+        mainSeries.setData(displayData);
+        volumeSeries.setData(displayData.map(d => ({
+            time: d.time,
+            value: Math.round((d.volume || 0) / 1000),
+            color: d.close >= d.open ? 'rgba(239,35,42,0.55)' : 'rgba(38,166,154,0.55)'
+        })));
+        maConfig.forEach((cfg, idx) => {
+            cfg.series.setData(calculateSMA(displayData, cfg.period));
+            cfg.series.applyOptions({ color: cfg.color, visible: cfg.visible, lineWidth: cfg.width || 1 });
+            const lbl = document.getElementById(`ma-label-${idx}`);
+            if (lbl) { lbl.textContent = `MA${cfg.period}`; lbl.parentNode.style.color = cfg.color; }
+        });
+        msgEl.style.display = 'none';
+        if (fit) mainChart.timeScale().fitContent();
+        updateOhlcInfo(displayData[displayData.length - 1]);   // V24：預設顯示最新一根K棒
+    } catch (err) {
+        console.error('K線渲染失敗:', err);
+        msgEl.textContent = 'K線渲染失敗: ' + err.message;
+        msgEl.style.display = 'block';
+    }
+}
+
+function setTimeframe(tf) {
+    if (!globalPriceData.length) { currentTF = tf; LS.set('wr_tf', tf); }
+    // 先把目前畫的圖形序列化 (以日期為錨點)，切換後再還原到新座標
+    const serialized = drawings.map(serializeShape).filter(Boolean);
+    currentTF = tf;
+    LS.set('wr_tf', tf);
+    ['D','W','M'].forEach(t => document.getElementById('tf-' + t).classList.toggle('active', t === tf));
+    // V24：若均線「週期同步」是關閉的，切換週期時載入該週期各自記憶的勾選狀態
+    if (!maSyncTF) {
+        loadMAVisible();
+        maConfig.forEach((cfg, idx) => {
+            cfg.series.applyOptions({ visible: cfg.visible });
+            const cb = document.getElementById(`ma-check-${idx}`);
+            if (cb) cb.checked = cfg.visible;
+        });
+    }
+    if (globalPriceData.length) {
+        applyPriceData(true);
+        drawings = serialized.map(hydrateShape).filter(Boolean);
+        redrawDrawings();
+    }
+}
+
+/* ══════════ 畫圖工具模組 (V21：可選取/拖曳/編輯/個別刪除) ══════════ */
+const drawCanvas = document.getElementById('draw-canvas');
+const dctx = drawCanvas.getContext('2d');
+const shapePanel = document.getElementById('shape-panel');
+let activeTool = null, drawings = [], pendingPoint = null, previewPoint = null;
+let selectedId = null, dragInfo = null, shapeIdSeq = 1;
+const FIB_ALL = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+const FIB_COLORS = { 0:'#787b86', 0.236:'#f23645', 0.382:'#ff9800', 0.5:'#4caf50', 0.618:'#26a69a', 0.786:'#00bcd4', 1:'#787b86' };
+/* V22：各工具的預設顏色/線寬/樣式（實線/虛線/點線）會記住你上次的修改
+   V24：水平線/趨勢線新增 opacity（透明度），矩形框新增 fill（是否顯示背景） */
+let toolDefaults = Object.assign(
+    { hline:{color:'#FFD700',width:1.5,style:'solid',opacity:1}, trend:{color:'#00B0FF',width:1.5,style:'solid',opacity:1}, rect:{color:'#AB47BC',width:1.5,style:'solid',fill:true}, fib:{color:'#2962FF',width:1.5,style:'solid'} },
+    LS.get('wr_toolDefaults', {})
+);
+Object.values(toolDefaults).forEach(d => { if (!d.style) d.style = 'solid'; });   // 相容舊版已儲存的設定
+if (toolDefaults.hline.opacity === undefined) toolDefaults.hline.opacity = 1;
+if (toolDefaults.trend.opacity === undefined) toolDefaults.trend.opacity = 1;
+if (toolDefaults.rect.fill === undefined) toolDefaults.rect.fill = true;
+function persistToolDefaults() { LS.set('wr_toolDefaults', toolDefaults); }
+
+/* V24：畫圖工具列 收合／釘選 */
+let toolbarPinned = LS.get('wr_toolbarPinned', false);
+let toolbarCollapsed = toolbarPinned ? LS.get('wr_toolbarCollapsed', false) : false;
+function applyToolbarState() {
+    const tb = document.getElementById('draw-toolbar');
+    tb.classList.toggle('collapsed', toolbarCollapsed);
+    document.getElementById('toolbar-pin-btn').classList.toggle('active', toolbarPinned);
+    document.getElementById('toolbar-collapse-btn').title = toolbarCollapsed ? '展開工具列' : '收合工具列';
+}
+function toggleToolbarCollapse() {
+    toolbarCollapsed = !toolbarCollapsed;
+    if (toolbarPinned) LS.set('wr_toolbarCollapsed', toolbarCollapsed);
+    applyToolbarState();
+}
+function toggleToolbarPin() {
+    toolbarPinned = !toolbarPinned;
+    LS.set('wr_toolbarPinned', toolbarPinned);
+    if (toolbarPinned) LS.set('wr_toolbarCollapsed', toolbarCollapsed);   // 釘選當下的狀態，之後重新整理網頁會記住
+    applyToolbarState();
+}
+
+function initDrawingTools() {
+    applyToolbarState();   // V24：套用收合/釘選的記憶狀態
+    resizeDrawCanvas();
+    mainChart.timeScale().subscribeVisibleLogicalRangeChange(() => redrawDrawings());
+    drawCanvas.addEventListener('mousedown', onDrawClick);
+    drawCanvas.addEventListener('mousemove', onDrawMove);
+
+    // 游標模式下的選取與拖曳（capture 攔截，命中圖形時不讓圖表平移）
+    const chartEl = document.getElementById('chart-container');
+    chartEl.addEventListener('mousedown', e => {
+        if (activeTool) return;
+        const r = chartEl.getBoundingClientRect();
+        const x = e.clientX - r.left, y = e.clientY - r.top;
+        const hit = hitTest(x, y);
+        if (hit) {
+            e.preventDefault(); e.stopPropagation();
+            selectedId = hit.id;
+            const shape = getShape(hit.id);
+            dragInfo = { id: hit.id, part: hit.part, startPt: toChartPoint(x, y), orig: JSON.parse(JSON.stringify(shape)) };
+            showShapePanel(shape);
+            redrawDrawings();
+        } else if (selectedId !== null) {
+            selectedId = null;
+            hideShapePanel();
+            redrawDrawings();
+        }
+    }, true);
+
+    document.addEventListener('mousemove', e => {
+        if (!dragInfo) return;
+        const r = drawCanvas.getBoundingClientRect();
+        const pt = toChartPoint(e.clientX - r.left, e.clientY - r.top);
+        if (!pt) return;
+        const s = getShape(dragInfo.id);
+        if (!s) return;
+        const dL = pt.logical - dragInfo.startPt.logical;
+        const dP = pt.price - dragInfo.startPt.price;
+        const o = dragInfo.orig;
+        if (s.type === 'hline') {
+            s.price = o.price + dP;
+        } else if (dragInfo.part === 'p1') {
+            s.p1 = { logical: o.p1.logical + dL, price: o.p1.price + dP };
+        } else if (dragInfo.part === 'p2') {
+            s.p2 = { logical: o.p2.logical + dL, price: o.p2.price + dP };
+        } else {
+            s.p1 = { logical: o.p1.logical + dL, price: o.p1.price + dP };
+            s.p2 = { logical: o.p2.logical + dL, price: o.p2.price + dP };
+        }
+        redrawDrawings();
+    });
+    document.addEventListener('mouseup', () => {
+        if (dragInfo) { dragInfo = null; persistDrawings(); }   // V22：拖曳結束後儲存
+    });
+
+    // V22：拖曳價格軸/滾輪縮放時，讓畫的圖形即時跟著重繪（原本只監聽時間軸變化）
+    let rafPending = false;
+    const scheduleRedraw = () => {
+        if (rafPending) return;
+        rafPending = true;
+        requestAnimationFrame(() => { rafPending = false; redrawDrawings(); });
+    };
+    document.addEventListener('mousemove', scheduleRedraw);
+    chartEl.addEventListener('wheel', scheduleRedraw, { passive: true });
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { pendingPoint = null; previewPoint = null; setTool(null); }
+        if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId !== null && document.activeElement.tagName !== 'INPUT') {
+            deleteSelected();
+        }
+    });
+}
+
+function resizeDrawCanvas() {
+    const c = document.getElementById('chart-container');
+    drawCanvas.width = c.clientWidth;
+    drawCanvas.height = c.clientHeight;
+    redrawDrawings();
+}
+
+function setTool(tool) {
+    activeTool = tool; pendingPoint = null; previewPoint = null;
+    document.querySelectorAll('.draw-tool-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById(tool === null ? 'tool-cursor' : 'tool-' + tool);
+    if (btn) btn.classList.add('active');
+    drawCanvas.classList.toggle('drawing', tool !== null);
+    redrawDrawings();
+}
+
+function clearDrawings() {
+    drawings = []; pendingPoint = null; previewPoint = null; selectedId = null;
+    hideShapePanel(); redrawDrawings();
+    persistDrawings();   // V22：清除也要同步記憶
+}
+function getShape(id) { return drawings.find(d => d.id === id); }
+function deleteSelected() {
+    drawings = drawings.filter(d => d.id !== selectedId);
+    selectedId = null; hideShapePanel(); redrawDrawings();
+    persistDrawings();   // V22
+}
+
+/* ══════════ V22：圖形記憶 (以日期錨定，換股票/週期/重開網頁都能還原) ══════════ */
+function nearestIdxByTime(t) {
+    const n = displayData.length;
+    if (!n) return 0;
+    let lo = 0, hi = n - 1;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (displayData[m].time < t) lo = m + 1; else hi = m; }
+    if (lo > 0) {
+        const dCur  = Math.abs(new Date(displayData[lo].time) - new Date(t));
+        const dPrev = Math.abs(new Date(displayData[lo - 1].time) - new Date(t));
+        if (dPrev <= dCur) return lo - 1;
+    }
+    return lo;
+}
+function serializePoint(p) {
+    const n = displayData.length;
+    if (!n || !p) return null;
+    let base = Math.floor(p.logical);
+    base = Math.max(0, Math.min(n - 1, base));
+    return { t: displayData[base].time, off: p.logical - base, price: p.price };
+}
+function hydratePoint(q) {
+    return { logical: nearestIdxByTime(q.t) + (q.off || 0), price: q.price };
+}
+function serializeShape(d) {
+    const s = { type: d.type, color: d.color, width: d.width, style: d.style || 'solid' };
+    if (d.type === 'hline') { s.price = d.price; s.opacity = d.opacity ?? 1; }
+    else {
+        s.p1 = serializePoint(d.p1);
+        s.p2 = serializePoint(d.p2);
+        if (!s.p1 || !s.p2) return null;
+        if (d.type === 'trend') s.opacity = d.opacity ?? 1;
+        if (d.type === 'rect') s.fill = d.fill !== false;
+    }
+    if (d.levels) s.levels = d.levels;
+    return s;
+}
+function hydrateShape(s) {
+    if (!s || !s.type) return null;
+    const d = { id: shapeIdSeq++, type: s.type, color: s.color || '#FFD700', width: s.width || 1.5, style: s.style || 'solid' };
+    if (s.type === 'hline') { d.price = s.price; d.opacity = s.opacity ?? 1; }
+    else {
+        if (!s.p1 || !s.p2) return null;
+        d.p1 = hydratePoint(s.p1);
+        d.p2 = hydratePoint(s.p2);
+        if (s.type === 'trend') d.opacity = s.opacity ?? 1;
+        if (s.type === 'rect') d.fill = s.fill !== false;
+    }
+    if (s.levels) d.levels = s.levels;
+    return d;
+}
+function persistDrawings() {
+    if (!currentSymbol || !displayData.length) return;
+    LS.set('wr_draw_' + currentSymbol, drawings.map(serializeShape).filter(Boolean));
+}
+function loadDrawings(symbol) {
+    const saved = LS.get('wr_draw_' + symbol, []);
+    drawings = (Array.isArray(saved) ? saved : []).map(hydrateShape).filter(Boolean);
+    pendingPoint = null; previewPoint = null; selectedId = null;
+    hideShapePanel(); redrawDrawings();
+}
+
+/* 座標轉換 */
+function toChartPoint(x, y) {
+    const logical = mainChart.timeScale().coordinateToLogical(x);
+    const price = mainSeries.coordinateToPrice(y);
+    if (logical === null || price === null) return null;
+    return { logical, price };
+}
+function toPixel(pt) {
+    const x = mainChart.timeScale().logicalToCoordinate(pt.logical);
+    const y = mainSeries.priceToCoordinate(pt.price);
+    if (x === null || y === null) return null;
+    return { x, y };
+}
+
+/* 新增圖形 */
+function onDrawClick(e) {
+    if (!activeTool) return;
+    const r = drawCanvas.getBoundingClientRect();
+    const pt = toChartPoint(e.clientX - r.left, e.clientY - r.top);
+    if (!pt) return;
+    if (activeTool === 'hline') {
+        const def = toolDefaults.hline;
+        drawings.push({ id: shapeIdSeq++, type: 'hline', price: pt.price, color: def.color, width: def.width, style: def.style, opacity: def.opacity ?? 1 });
+        persistDrawings();   // V22
+        setTool(null); return;
+    }
+    // V24：畫趨勢線時按住 Shift，把第二點的價格鎖定成跟第一點一樣（方便畫水平線段）
+    if (activeTool === 'trend' && pendingPoint && e.shiftKey) pt.price = pendingPoint.price;
+    if (!pendingPoint) { pendingPoint = pt; }
+    else {
+        const def = toolDefaults[activeTool] || { color: '#FFD700', width: 1.5, style: 'solid' };
+        const s = { id: shapeIdSeq++, type: activeTool, p1: pendingPoint, p2: pt, color: def.color, width: def.width, style: def.style };
+        if (activeTool === 'trend') s.opacity = def.opacity ?? 1;
+        if (activeTool === 'rect') s.fill = def.fill !== false;
+        if (activeTool === 'fib') { s.levels = {}; FIB_ALL.forEach(lv => s.levels[lv] = true); }
+        drawings.push(s);
+        persistDrawings();   // V22
+        pendingPoint = null; previewPoint = null; setTool(null);
+    }
+    redrawDrawings();
+}
+function onDrawMove(e) {
+    if (!activeTool || !pendingPoint) return;
+    const r = drawCanvas.getBoundingClientRect();
+    previewPoint = toChartPoint(e.clientX - r.left, e.clientY - r.top);
+    // V24：預覽階段同樣支援 Shift 水平鎖定，畫的時候就能看到會鎖平
+    if (activeTool === 'trend' && previewPoint && e.shiftKey) previewPoint.price = pendingPoint.price;
+    redrawDrawings();
+}
+
+/* 命中測試 */
+function distToSeg(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const len2 = dx * dx + dy * dy;
+    let t = len2 ? ((px - x1) * dx + (py - y1) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const cx = x1 + t * dx, cy = y1 + t * dy;
+    return Math.hypot(px - cx, py - cy);
+}
+function hitTest(x, y) {
+    const TOL = 7;
+    for (let i = drawings.length - 1; i >= 0; i--) {
+        const d = drawings[i];
+        if (d.type === 'hline') {
+            const ly = mainSeries.priceToCoordinate(d.price);
+            if (ly !== null && Math.abs(y - ly) < TOL) return { id: d.id, part: 'body' };
+        } else {
+            const a = toPixel(d.p1), b = toPixel(d.p2);
+            if (!a || !b) continue;
+            if (Math.hypot(x - a.x, y - a.y) < TOL) return { id: d.id, part: 'p1' };
+            if (Math.hypot(x - b.x, y - b.y) < TOL) return { id: d.id, part: 'p2' };
+            if (d.type === 'trend') {
+                if (distToSeg(x, y, a.x, a.y, b.x, b.y) < TOL) return { id: d.id, part: 'body' };
+            } else if (d.type === 'rect') {
+                const xL = Math.min(a.x,b.x), xR = Math.max(a.x,b.x), yT = Math.min(a.y,b.y), yB = Math.max(a.y,b.y);
+                const onEdge = (x >= xL - TOL && x <= xR + TOL && y >= yT - TOL && y <= yB + TOL) &&
+                               (Math.abs(x - xL) < TOL || Math.abs(x - xR) < TOL || Math.abs(y - yT) < TOL || Math.abs(y - yB) < TOL);
+                const inside = x > xL && x < xR && y > yT && y < yB;
+                if (onEdge || inside) return { id: d.id, part: 'body' };
+            } else if (d.type === 'fib') {
+                const xL = Math.min(a.x, b.x), xR = Math.max(a.x, b.x);
+                if (x >= xL - TOL && x <= xR + TOL) {
+                    const hi = Math.max(d.p1.price, d.p2.price), lo = Math.min(d.p1.price, d.p2.price);
+                    for (const lv of FIB_ALL) {
+                        if (d.levels && !d.levels[lv]) continue;
+                        const ly = mainSeries.priceToCoordinate(hi - (hi - lo) * lv);
+                        if (ly !== null && Math.abs(y - ly) < TOL) return { id: d.id, part: 'body' };
+                    }
+                }
+            }
+        }
+    }
+    return null;
+}
+
+/* 屬性面板 */
+function showShapePanel(s) {
+    document.getElementById('sp-color').value = s.color;
+    document.getElementById('sp-width').value = s.width;
+    updateStyleButtons(s.style || 'solid');   // V22
+    const fibRow = document.getElementById('sp-fib-row');
+    const opacityRow = document.getElementById('sp-opacity-row');
+    const fillRow = document.getElementById('sp-fill-row');
+    // V24：透明度只對水平線/趨勢線有意義；背景顯示只對矩形框有意義
+    if (s.type === 'hline' || s.type === 'trend') {
+        opacityRow.style.display = 'flex';
+        const pct = Math.round((s.opacity ?? 1) * 100);
+        document.getElementById('sp-opacity').value = pct;
+        document.getElementById('sp-opacity-val').textContent = pct + '%';
+    } else {
+        opacityRow.style.display = 'none';
+    }
+    if (s.type === 'rect') {
+        fillRow.style.display = 'flex';
+        document.getElementById('sp-fill').checked = s.fill !== false;
+    } else {
+        fillRow.style.display = 'none';
+    }
+    if (s.type === 'fib') {
+        fibRow.style.display = 'flex';
+        let html = '';
+        FIB_ALL.forEach(lv => {
+            const checked = s.levels[lv] ? 'checked' : '';
+            html += `<label><input type="checkbox" data-lv="${lv}" ${checked} onchange="spApply()"> ${(lv*100).toFixed(1)}%</label>`;
+        });
+        document.getElementById('sp-fib-levels').innerHTML = html;
+    } else {
+        fibRow.style.display = 'none';
+    }
+    shapePanel.classList.add('show');
+}
+function hideShapePanel() { shapePanel.classList.remove('show'); }
+function updateStyleButtons(style) {   // V22
+    document.querySelectorAll('#sp-style-group .sp-style-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.style === style);
+    });
+}
+function spSetStyle(style) {   // V22：點選線段樣式（實線／虛線／點線）
+    updateStyleButtons(style);
+    spApply();
+}
+function spApply() {
+    const s = getShape(selectedId);
+    if (!s) return;
+    s.color = document.getElementById('sp-color').value;
+    s.width = parseFloat(document.getElementById('sp-width').value) || 1.5;
+    const activeBtn = document.querySelector('#sp-style-group .sp-style-btn.active');
+    s.style = activeBtn ? activeBtn.dataset.style : (s.style || 'solid');   // V22
+    const def = { color: s.color, width: s.width, style: s.style };
+    if (s.type === 'hline' || s.type === 'trend') {
+        const pct = parseInt(document.getElementById('sp-opacity').value) || 100;
+        s.opacity = pct / 100;
+        document.getElementById('sp-opacity-val').textContent = pct + '%';
+        def.opacity = s.opacity;
+    }
+    if (s.type === 'rect') {
+        s.fill = document.getElementById('sp-fill').checked;
+        def.fill = s.fill;
+    }
+    if (s.type === 'fib') {
+        document.querySelectorAll('#sp-fib-levels input').forEach(cb => {
+            s.levels[parseFloat(cb.dataset.lv)] = cb.checked;
+        });
+    }
+    // V22：把這次修改記成該工具的新預設值，下次畫同類圖形直接套用
+    toolDefaults[s.type] = Object.assign({}, toolDefaults[s.type], def);
+    persistToolDefaults();
+    persistDrawings();
+    redrawDrawings();
+}
+
+/* 繪製 */
+function redrawDrawings() {
+    dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    drawings.forEach(d => renderShape(d, false, d.id === selectedId));
+    if (activeTool && activeTool !== 'hline' && pendingPoint && previewPoint) {
+        const def = toolDefaults[activeTool] || { color: '#FFD700', width: 1.5 };
+        const preview = { type: activeTool, p1: pendingPoint, p2: previewPoint, color: def.color, width: def.width, fill: def.fill };
+        if (activeTool === 'fib') { preview.levels = {}; FIB_ALL.forEach(lv => preview.levels[lv] = true); }
+        renderShape(preview, true, false);
+    }
+}
+
+function drawHandle(p) {
+    dctx.beginPath();
+    dctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+    dctx.fillStyle = '#fff';
+    dctx.fill();
+    dctx.strokeStyle = '#26a69a';
+    dctx.lineWidth = 2;
+    dctx.stroke();
+}
+
+const LINE_DASH_PATTERNS = { solid: [], dashed: [7, 5], dotted: [1.5, 4] };   // V22
+
+/* V24 修正：畫圖疊加層 canvas 跟整個 chart-container 一樣寬，但 Lightweight Charts 右側會保留
+   價格座標軸的寬度，實際K棒繪圖區比 canvas 窄。水平線原本畫到 canvas 最右邊，導致線條蓋到座標軸文字。
+   這裡改成畫到「繪圖區右緣」（canvas 寬度 - 價格軸寬度）為止。 */
+function getPlotRightEdge() {
+    try {
+        const w = mainChart.priceScale('right').width();
+        if (typeof w === 'number' && w > 0) return Math.max(0, drawCanvas.width - w);
+    } catch (e) {}
+    return drawCanvas.width;
+}
+
+function renderShape(d, isPreview, isSelected) {
+    dctx.save();
+    dctx.lineWidth = d.width || 1.5;
+    dctx.lineCap = (d.style === 'dotted') ? 'round' : 'butt';   // V22：點線用圓端才會像「點」
+    dctx.setLineDash(isPreview ? [5, 4] : (LINE_DASH_PATTERNS[d.style] || []));   // V22
+    dctx.font = '11px monospace';
+
+    if (d.type === 'hline') {
+        const y = mainSeries.priceToCoordinate(d.price);
+        if (y === null) { dctx.restore(); return; }
+        dctx.strokeStyle = hexToRgba(d.color, d.opacity ?? 1);   // V24：透明度
+        dctx.beginPath(); dctx.moveTo(0, y); dctx.lineTo(getPlotRightEdge(), y); dctx.stroke();   // V24：不畫進座標軸
+        dctx.fillStyle = d.color;
+        dctx.fillText(d.price.toFixed(2), 6, y - 5);
+        if (isSelected) drawHandle({ x: getPlotRightEdge() / 2, y: y });
+
+    } else if (d.type === 'trend') {
+        const a = toPixel(d.p1), b = toPixel(d.p2);
+        if (!a || !b) { dctx.restore(); return; }
+        dctx.strokeStyle = hexToRgba(d.color, d.opacity ?? 1);   // V24：透明度
+        dctx.beginPath(); dctx.moveTo(a.x, a.y); dctx.lineTo(b.x, b.y); dctx.stroke();
+        if (isSelected) { drawHandle(a); drawHandle(b); }
+        else {
+            dctx.fillStyle = d.color;
+            [a, b].forEach(p => { dctx.beginPath(); dctx.arc(p.x, p.y, 3, 0, Math.PI*2); dctx.fill(); });
+        }
+
+    } else if (d.type === 'rect') {
+        const a = toPixel(d.p1), b = toPixel(d.p2);
+        if (!a || !b) { dctx.restore(); return; }
+        const x = Math.min(a.x,b.x), y = Math.min(a.y,b.y), w = Math.abs(b.x-a.x), h = Math.abs(b.y-a.y);
+        dctx.strokeStyle = d.color;
+        if (d.fill !== false) {   // V24：背景是否顯示可勾選
+            dctx.fillStyle = hexToRgba(d.color, 0.12);
+            dctx.fillRect(x, y, w, h);
+        }
+        dctx.strokeRect(x, y, w, h);
+        if (isSelected) { drawHandle(a); drawHandle(b); }
+
+    } else if (d.type === 'fib') {
+        const a = toPixel(d.p1), b = toPixel(d.p2);
+        if (!a || !b) { dctx.restore(); return; }
+        const xL = Math.min(a.x, b.x), xR = Math.max(a.x, b.x);
+        const hi = Math.max(d.p1.price, d.p2.price), lo = Math.min(d.p1.price, d.p2.price);
+        const range = hi - lo;
+        FIB_ALL.forEach(lv => {
+            if (d.levels && !d.levels[lv]) return;   // 使用者取消勾選的係數不畫
+            const price = hi - range * lv;
+            const y = mainSeries.priceToCoordinate(price);
+            if (y === null) return;
+            const c = FIB_COLORS[lv] || d.color;
+            dctx.strokeStyle = c;
+            dctx.beginPath(); dctx.moveTo(xL, y); dctx.lineTo(xR, y); dctx.stroke();
+            dctx.fillStyle = c;
+            dctx.fillText((lv*100).toFixed(1) + '%  ' + price.toFixed(2), xR + 6, y + 4);
+        });
+        const yTop = mainSeries.priceToCoordinate(hi), yBot = mainSeries.priceToCoordinate(lo);
+        if (yTop !== null && yBot !== null) {
+            dctx.fillStyle = hexToRgba(d.color, 0.05);
+            dctx.fillRect(xL, yTop, xR - xL, yBot - yTop);
+        }
+        if (isSelected) { drawHandle(a); drawHandle(b); }
+    }
+    dctx.restore();
+}
+
+function hexToRgba(hex, alpha) {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/* ══════════ 資料抓取 ══════════ */
+async function fetchData() {
+    const symbol = symbolInput.value.trim();
+    if (!symbol) return alert("請輸入代碼");
+    currentSymbol = symbol;   // V22
+    nameDisplay.textContent = "";
+    ['msg-chart','msg-table','msg-trend'].forEach(id => {
+        document.getElementById(id).style.display = 'block';
+        document.getElementById(id).textContent = "載入中...";
+    });
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 1095);
+    const startDate = pastDate.toISOString().split('T')[0];
+    try {
+        const [infoRes, priceRes, investorRes] = await Promise.all([
+            fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo&data_id=${symbol}`),
+            fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${symbol}&start_date=${startDate}`),
+            fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInstitutionalInvestorsBuySell&data_id=${symbol}&start_date=${startDate}`)
+        ]);
+        const infoJson = await infoRes.json();
+        const priceJson = await priceRes.json();
+        const investorJson = await investorRes.json();
+
+        nameDisplay.textContent = (infoJson.data && infoJson.data.length > 0) ? infoJson.data[0].stock_name : symbol;
+
+        if (priceJson.data && priceJson.data.length > 0) {
+            globalPriceData = priceJson.data.map(i => ({
+                time: i.date, open: i.open, high: i.max, low: i.min, close: i.close, volume: i.Trading_Volume
+            }));
+            applyPriceData(true);                    // V22：依目前週期 (日/週/月) 顯示，並自行顯示/隱藏 msg-chart
+            loadDrawings(symbol);                    // V22：載入此標的先前畫過的圖形
+        } else {
+            // V22：API 回傳空資料時明確告知原因，而不是留著「載入中...」讓畫面看起來像沒反應
+            globalPriceData = []; displayData = [];
+            mainSeries.setData([]); volumeSeries.setData([]);
+            maConfig.forEach(cfg => cfg.series.setData([]));
+            const reason = priceJson.msg ? `（${priceJson.msg}）` : '（可能代碼錯誤、尚未上市，或資料來源暫無資料）';
+            const msgEl = document.getElementById('msg-chart');
+            msgEl.textContent = `查無「${symbol}」的K線資料 ${reason}`;
+            msgEl.style.display = 'block';
+        }
+
+        if (investorJson.data && investorJson.data.length > 0) {
+            globalInvestorData = processInvestorData(investorJson.data);
+            renderTable(globalInvestorData);
+            document.getElementById('msg-table').style.display = 'none';
+            updateTrendCharts();
+            document.getElementById('msg-trend').style.display = 'none';
+        } else {
+            document.getElementById('msg-table').textContent = "無籌碼資料";
+            document.getElementById('msg-trend').textContent = "無籌碼資料";
+        }
+    } catch (err) {
+        console.error(err);
+        alert("資料讀取失敗: " + err.message);
+    }
+}
+
+function processInvestorData(rawData) {
+    const grouped = {};
+    investorDateMap = {};
+    rawData.forEach(item => {
+        const date = item.date;
+        if (!grouped[date]) grouped[date] = { date, Foreign: 0, Trust: 0, Dealer: 0, Total: 0 };
+        const net = (item.buy - item.sell) / 1000;
+        if (item.name === "Foreign_Investor") grouped[date].Foreign += net;
+        else if (item.name === "Investment_Trust") grouped[date].Trust += net;
+        else if (item.name.includes("Dealer")) grouped[date].Dealer += net;
+    });
+    return Object.values(grouped).map(d => {
+        d.Total = d.Foreign + d.Trust + d.Dealer;
+        investorDateMap[d.date] = { ...d };
+        return d;
+    }).sort((a, b) => (a.date > b.date ? 1 : -1));
+}
+
+function updateTrendCharts() {
+    if (!globalInvestorData.length || !globalPriceData.length) return;
+    const sDate = document.getElementById('start-date').value;
+    const eDate = document.getElementById('end-date').value;
+    trendKSeries.setData(globalPriceData.filter(d => d.time >= sDate && d.time <= eDate));
+    trendKChart.timeScale().fitContent();
+    let cF = 0, cT = 0, cD = 0, cTot = 0;
+    const ldF = [], ldT = [], ldD = [], ldTotal = [];
+    globalInvestorData.filter(d => d.date >= sDate && d.date <= eDate).forEach(day => {
+        cF += day.Foreign; cT += day.Trust; cD += day.Dealer; cTot += day.Total;
+        ldF.push({ time: day.date, value: cF });
+        ldT.push({ time: day.date, value: cT });
+        ldD.push({ time: day.date, value: cD });
+        ldTotal.push({ time: day.date, value: cTot });
+    });
+    trendAlgoSeries['Foreign'].setData(ldF);
+    trendAlgoSeries['Trust'].setData(ldT);
+    trendAlgoSeries['Dealer'].setData(ldD);
+    trendAlgoSeries['Total'].setData(ldTotal);
+    toggleTrendSeries();
+    trendAlgoChart.timeScale().fitContent();
+}
+
+function toggleTrendSeries() {
+    trendAlgoSeries['Foreign'].applyOptions({ visible: document.getElementById('cb-foreign').checked });
+    trendAlgoSeries['Trust'].applyOptions({ visible: document.getElementById('cb-trust').checked });
+    trendAlgoSeries['Dealer'].applyOptions({ visible: document.getElementById('cb-dealer').checked });
+    trendAlgoSeries['Total'].applyOptions({ visible: document.getElementById('cb-total').checked });
+}
+
+function renderTable(dataArray) {
+    const tbody = document.querySelector("#investor-table tbody");
+    tbody.innerHTML = "";
+    [...dataArray].reverse().forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${row.date}</td><td class="${getColor(row.Foreign)}">${fmt(row.Foreign)}</td><td class="${getColor(row.Trust)}">${fmt(row.Trust)}</td><td class="${getColor(row.Dealer)}">${fmt(row.Dealer)}</td><td class="${getColor(row.Total)}">${fmt(row.Total)}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+function fmt(n) { return Math.round(n).toLocaleString(); }
+function getColor(n) { return n > 0 ? 'up' : (n < 0 ? 'down' : 'neutral'); }
+
+function resizeAllCharts() {
+    if (document.getElementById('view-chart').classList.contains('active')) {
+        const c = document.getElementById('chart-container');
+        mainChart.resize(c.clientWidth, c.clientHeight);
+        resizeDrawCanvas();
+    }
+    if (document.getElementById('view-trend').classList.contains('active')) {
+        trendKChart.resize(document.getElementById('trend-k-container').clientWidth, document.getElementById('trend-k-container').clientHeight);
+        trendAlgoChart.resize(document.getElementById('trend-algo-container').clientWidth, document.getElementById('trend-algo-container').clientHeight);
+    }
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.content-area').forEach(c => c.classList.remove('active'));
+    document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+    document.getElementById(`view-${tab}`).classList.add('active');
+    if (tab === 'trend') {
+        requestAnimationFrame(() => {
+            trendKChart.resize(document.getElementById('trend-k-container').clientWidth, document.getElementById('trend-k-container').clientHeight);
+            trendAlgoChart.resize(document.getElementById('trend-algo-container').clientWidth, document.getElementById('trend-algo-container').clientHeight);
+            trendKChart.timeScale().fitContent();
+            trendAlgoChart.timeScale().fitContent();
+        });
+    } else if (tab === 'chart') {
+        requestAnimationFrame(() => {
+            const c = document.getElementById('chart-container');
+            mainChart.resize(c.clientWidth, c.clientHeight);
+            resizeDrawCanvas();
+        });
+    }
+}
+
+/* V21: Enter 鍵直接查詢 */
+symbolInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); fetchData(); }
+});
+
+initCharts();
+fetchData();
+initFirebaseSync();   // V25：若之前已設定過雲端同步，開啟頁面時就自動連線並抓一次最新資料
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && fbRoot) pullFromCloud(false);   // V25：切回分頁時順便檢查有沒有其他裝置的新資料
+});
+</script>
+</body>
+</html>
+
