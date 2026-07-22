@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股全方位戰情室 (V26)</title>
+<title>台股全方位戰情室 (V27)</title>
 <style>
 body{margin:0;padding:20px;background:#121212;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;color:#ddd}
 .main-controls{margin-bottom:15px;display:flex;gap:10px;justify-content:center;align-items:center;background:#1e1e1e;padding:10px 20px;border-radius:8px;border:1px solid #333}
@@ -34,6 +34,9 @@ button.search-btn:hover{background:#c51162}
 .tf-btn{width:36px;height:28px;background:transparent;border:1px solid transparent;border-radius:4px;color:#aaa;cursor:pointer;font-size:.85rem;transition:all .15s}
 .tf-btn:hover{background:#333;color:#fff}
 .tf-btn.active{background:#26a69a;color:#fff;font-weight:bold}
+.tf-group .tf-divider{width:1px;background:#444;margin:2px 2px}
+.tf-btn.restore-btn{width:auto;padding:0 8px;font-size:.8rem}
+.tf-btn.restore-btn.active{background:#ff9100;color:#fff}
 /* 畫圖工具列 (V24：可收合 + 釘選) */
 .draw-toolbar{position:absolute;top:10px;left:10px;z-index:30;background:rgba(30,30,30,.92);border:1px solid #444;border-radius:6px;display:flex;flex-direction:column;gap:4px;padding:6px}
 .draw-toolbar-header{display:flex;gap:2px;justify-content:center;padding-bottom:4px;margin-bottom:2px;border-bottom:1px solid #444}
@@ -80,6 +83,9 @@ button.search-btn:hover{background:#c51162}
 .ohlc-info .oi-label{color:#888;margin-right:2px}
 .ohlc-info .oi-val{font-weight:bold}
 .ohlc-info .oi-name{color:#ddd;font-weight:bold;margin-right:4px}
+.watchlist-star{pointer-events:auto;background:transparent;border:none;color:#666;cursor:pointer;font-size:1rem;padding:0 2px;line-height:1}
+.watchlist-star:hover{color:#ffca28}
+.watchlist-star.active{color:#ffca28}
 /* V24：截圖按鈕 */
 .screenshot-btn{position:absolute;top:10px;right:6px;z-index:25;width:30px;height:30px;background:rgba(30,30,30,.9);border:1px solid #555;border-radius:4px;color:#aaa;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .screenshot-btn:hover{background:#26a69a;color:#fff;border-color:#26a69a}
@@ -122,6 +128,15 @@ th{background:#2a2a2a;color:#aaa;position:sticky;top:0;z-index:10}
 th:first-child,td:first-child{text-align:left;color:#ddd}
 .up{color:#ff5252}.down{color:#00e676}.neutral{color:#888}
 .status-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;pointer-events:none;display:none}
+/* V27：自選股 */
+.watchlist-wrapper{padding:16px;max-width:640px;margin:0 auto}
+.watchlist-empty{color:#777;text-align:center;padding:40px 20px;font-size:.9rem;line-height:1.8}
+.watchlist-row{display:flex;align-items:center;gap:14px;padding:12px 16px;background:#1e1e1e;border:1px solid #333;border-radius:6px;margin-bottom:8px;cursor:pointer;transition:all .15s}
+.watchlist-row:hover{background:#262626;border-color:#26a69a}
+.wl-symbol{font-family:monospace;font-weight:bold;color:#4dabf7;width:60px}
+.wl-name{flex:1;color:#ddd}
+.wl-remove{background:transparent;border:none;color:#666;cursor:pointer;font-size:1rem;padding:4px 8px;border-radius:4px}
+.wl-remove:hover{color:#f44336;background:#f4433622}
 #chart-container,#trend-k-container,#trend-algo-container{width:100%;height:100%}
 /* V25：雲端同步 */
 .sync-btn{padding:8px 12px;border-radius:4px;border:1px solid #555;background:#2a2a2a;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:.85rem}
@@ -159,9 +174,16 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
 </div>
 
 <div class="tabs">
+    <div class="tab" onclick="switchTab('watchlist')">⭐ 自選股</div>
     <div class="tab active" onclick="switchTab('chart')">K 線圖 (全覽)</div>
     <div class="tab" onclick="switchTab('table')">三大法人明細</div>
     <div class="tab" onclick="switchTab('trend')">趨勢透視 (雙圖)</div>
+</div>
+
+<div id="view-watchlist" class="content-area">
+    <div class="watchlist-wrapper">
+        <div id="watchlist-list"></div>
+    </div>
 </div>
 
 <div id="view-chart" class="content-area active">
@@ -193,6 +215,8 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
         <button class="tf-btn active" id="tf-D" onclick="setTimeframe('D')" title="日線">日</button>
         <button class="tf-btn" id="tf-W" onclick="setTimeframe('W')" title="週線">週</button>
         <button class="tf-btn" id="tf-M" onclick="setTimeframe('M')" title="月線">月</button>
+        <div class="tf-divider"></div>
+        <button class="tf-btn restore-btn" id="tf-restore" onclick="toggleRestoreAdjust()" title="還原股價：自動偵測股票分割/反分割造成的價格斷層，讓歷史K線接續平滑">還原</button>
     </div>
 
     <!-- 選取圖形後的屬性面板 -->
@@ -503,6 +527,7 @@ function persistMAVisible() {
 let currentTF = LS.get('wr_tf', 'D');
 let displayData = [];
 let currentSymbol = '';
+let restoreAdjust = LS.get('wr_restoreAdjust', false);   // V27：是否套用「還原股價」
 loadMAVisible();   // 初始載入目前週期對應的勾選狀態（需在 currentTF 宣告之後執行）
 
 function renderMaControls() {
@@ -529,6 +554,7 @@ function renderMaControls() {
 function initCharts() {
     renderMaControls();
     ['D','W','M'].forEach(t => document.getElementById('tf-' + t).classList.toggle('active', t === currentTF));
+    document.getElementById('tf-restore').classList.toggle('active', restoreAdjust);   // V27
     const commonOptions = {
         layout: { textColor: '#d1d4dc', background: { type: 'solid', color: '#1e1e1e' } },
         grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
@@ -627,7 +653,9 @@ function updateOhlcInfo(bar) {
     const color = up ? '#ef232a' : '#26a69a';
     const pct = bar.open ? (((bar.close - bar.open) / bar.open) * 100).toFixed(2) : '0.00';
     const volTxt = Number.isFinite(bar.volume) ? Math.round(bar.volume / 1000).toLocaleString() + ' 張' : '—';
-    el.innerHTML = `<span class="oi-name">${nameDisplay.textContent || currentSymbol}</span>` +
+    const starOn = isInWatchlist(currentSymbol);   // V27
+    el.innerHTML = `<button class="watchlist-star ${starOn?'active':''}" onclick="toggleWatchlist(event)" title="${starOn?'從自選股移除':'加入自選股'}">${starOn?'★':'☆'}</button>` +
+        `<span class="oi-name">${nameDisplay.textContent || currentSymbol}</span>` +
         `<span><span class="oi-label">日期</span><span class="oi-val">${bar.time}</span></span>` +
         `<span style="color:${color}"><span class="oi-label" style="color:${color}">開</span><span class="oi-val">${bar.open.toFixed(2)}</span></span>` +
         `<span style="color:${color}"><span class="oi-label" style="color:${color}">高</span><span class="oi-val">${bar.high.toFixed(2)}</span></span>` +
@@ -635,6 +663,47 @@ function updateOhlcInfo(bar) {
         `<span style="color:${color}"><span class="oi-label" style="color:${color}">收</span><span class="oi-val">${bar.close.toFixed(2)}</span></span>` +
         `<span style="color:${color}">${up?'+':''}${pct}%</span>` +
         `<span><span class="oi-label">量</span><span class="oi-val">${volTxt}</span></span>`;
+}
+
+/* ══════════ V27：自選股 ══════════ */
+let watchlist = LS.get('wr_watchlist', []);   // [{symbol, name}, ...]
+function isInWatchlist(symbol) { return watchlist.some(w => w.symbol === symbol); }
+function toggleWatchlist(e) {
+    if (e) e.stopPropagation();
+    if (!currentSymbol) return;
+    const idx = watchlist.findIndex(w => w.symbol === currentSymbol);
+    if (idx >= 0) watchlist.splice(idx, 1);
+    else watchlist.push({ symbol: currentSymbol, name: (nameDisplay.textContent || currentSymbol).trim() });
+    LS.set('wr_watchlist', watchlist);
+    if (displayData.length) updateOhlcInfo(displayData[displayData.length - 1]);
+    renderWatchlistTab();
+}
+function renderWatchlistTab() {
+    const el = document.getElementById('watchlist-list');
+    if (!el) return;
+    if (!watchlist.length) {
+        el.innerHTML = `<div class="watchlist-empty">尚未加入任何自選股<br>切換到「K 線圖」頁籤，點股票名稱旁的 ☆ 即可加入</div>`;
+        return;
+    }
+    el.innerHTML = watchlist.map(w => `
+        <div class="watchlist-row" onclick="selectWatchlistStock('${w.symbol}')">
+            <span class="wl-symbol">${w.symbol}</span>
+            <span class="wl-name">${w.name}</span>
+            <button class="wl-remove" onclick="removeFromWatchlist(event,'${w.symbol}')" title="移除">✕</button>
+        </div>`).join('');
+}
+function selectWatchlistStock(symbol) {
+    // V27：點自選股 → 帶入代號並查詢，所有頁籤（K線圖/三大法人/趨勢透視）都會一起同步這檔股票
+    symbolInput.value = symbol;
+    switchTab('chart');
+    fetchData();
+}
+function removeFromWatchlist(e, symbol) {
+    e.stopPropagation();
+    watchlist = watchlist.filter(w => w.symbol !== symbol);
+    LS.set('wr_watchlist', watchlist);
+    renderWatchlistTab();
+    if (symbol === currentSymbol && displayData.length) updateOhlcInfo(displayData[displayData.length - 1]);
 }
 
 /* V24：截圖並下載目前K線圖畫面（含K棒/均線/成交量 + 手繪圖形） */
@@ -780,8 +849,42 @@ function sanitizePriceData(data) {
         .filter(d => (seen.has(d.time) ? false : (seen.add(d.time), true)));
 }
 
+/* V27：還原股價 — 有些個股（尤其像槓桿型ETF）會定期做股票分割/反分割，或有減資參考價，
+   FinMind 回傳的是「當時的原始股價」，沒有做分割調整，圖上就會出現一段垂直斷崖（例如某天
+   收盤500、隔天開盤變35）。這裡用簡單的演算法自動偵測：正常台股單日漲跌幅限制在10%左右，
+   如果「隔日開盤 / 前一日收盤」的比值超過 ±15%，幾乎可以確定不是正常交易造成的，而是分割
+   或減資事件；偵測到之後，把「事件之前」的所有歷史價格等比例縮放，讓K線接續平滑、方便比較
+   （最新價格維持真實數字不變，只調整比較舊的歷史價格；成交量不調整）。 */
+function computeAdjustedData(raw) {
+    const n = raw.length;
+    if (n < 2) return raw.slice();
+    const factors = new Array(n).fill(1);
+    let cumFactor = 1;
+    for (let i = n - 1; i > 0; i--) {
+        const prevClose = raw[i - 1].close, currOpen = raw[i].open;
+        if (prevClose > 0 && currOpen > 0) {
+            const ratio = currOpen / prevClose;
+            if (ratio > 1.15 || ratio < 0.85) cumFactor *= ratio;   // 偵測到疑似分割/減資造成的價格斷層
+        }
+        factors[i - 1] = cumFactor;
+    }
+    return raw.map((d, i) => {
+        const f = factors[i];
+        if (f === 1) return d;
+        return { time: d.time, open: d.open * f, high: d.high * f, low: d.low * f, close: d.close * f, volume: d.volume };
+    });
+}
+function toggleRestoreAdjust() {
+    restoreAdjust = !restoreAdjust;
+    LS.set('wr_restoreAdjust', restoreAdjust);
+    document.getElementById('tf-restore').classList.toggle('active', restoreAdjust);
+    if (globalPriceData.length) applyPriceData(true);
+}
+
 function applyPriceData(fit = true) {
-    const agg = aggregateData(globalPriceData, currentTF);
+    const cleaned = sanitizePriceData(globalPriceData);                                 // V27：先清洗原始日線資料
+    const source = restoreAdjust ? computeAdjustedData(cleaned) : cleaned;               // V27：視「還原」開關決定是否做分割調整
+    const agg = aggregateData(source, currentTF);
     displayData = sanitizePriceData(agg);
     const msgEl = document.getElementById('msg-chart');
     if (!displayData.length) {
@@ -857,9 +960,11 @@ if (toolDefaults.trend.opacity === undefined) toolDefaults.trend.opacity = 1;
 if (toolDefaults.rect.fill === undefined) toolDefaults.rect.fill = true;
 function persistToolDefaults() { LS.set('wr_toolDefaults', toolDefaults); }
 
-/* V24：畫圖工具列 收合／釘選 */
+/* V24：畫圖工具列 收合／釘選
+   V27 調整：沒有釘選時改成「自動收折」— 預設收合，滑鼠移到工具列上才自動展開，移開就自動收回；
+   釘選時才是手動固定（點收合鈕自己控制，狀態會被記住）。 */
 let toolbarPinned = LS.get('wr_toolbarPinned', false);
-let toolbarCollapsed = toolbarPinned ? LS.get('wr_toolbarCollapsed', false) : false;
+let toolbarCollapsed = toolbarPinned ? LS.get('wr_toolbarCollapsed', false) : true;
 function applyToolbarState() {
     const tb = document.getElementById('draw-toolbar');
     tb.classList.toggle('collapsed', toolbarCollapsed);
@@ -874,12 +979,24 @@ function toggleToolbarCollapse() {
 function toggleToolbarPin() {
     toolbarPinned = !toolbarPinned;
     LS.set('wr_toolbarPinned', toolbarPinned);
-    if (toolbarPinned) LS.set('wr_toolbarCollapsed', toolbarCollapsed);   // 釘選當下的狀態，之後重新整理網頁會記住
+    if (toolbarPinned) {
+        LS.set('wr_toolbarCollapsed', toolbarCollapsed);   // 釘選當下的狀態，之後重新整理網頁會記住
+    } else {
+        toolbarCollapsed = true;   // V27：取消釘選後，改回「自動收折」模式，預設收合、滑鼠移入才展開
+    }
     applyToolbarState();
 }
 
 function initDrawingTools() {
     applyToolbarState();   // V24：套用收合/釘選的記憶狀態
+    // V27：沒釘選時，滑鼠移到工具列上自動展開、移開自動收回
+    const toolbarEl = document.getElementById('draw-toolbar');
+    toolbarEl.addEventListener('mouseenter', () => {
+        if (!toolbarPinned && toolbarCollapsed) { toolbarCollapsed = false; applyToolbarState(); }
+    });
+    toolbarEl.addEventListener('mouseleave', () => {
+        if (!toolbarPinned && !toolbarCollapsed) { toolbarCollapsed = true; applyToolbarState(); }
+    });
     resizeDrawCanvas();
     mainChart.timeScale().subscribeVisibleLogicalRangeChange(() => redrawDrawings());
     drawCanvas.addEventListener('mousedown', onDrawClick);
@@ -1451,7 +1568,9 @@ function switchTab(tab) {
     document.querySelectorAll('.content-area').forEach(c => c.classList.remove('active'));
     document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
     document.getElementById(`view-${tab}`).classList.add('active');
-    if (tab === 'trend') {
+    if (tab === 'watchlist') {
+        renderWatchlistTab();   // V27
+    } else if (tab === 'trend') {
         requestAnimationFrame(() => {
             trendKChart.resize(document.getElementById('trend-k-container').clientWidth, document.getElementById('trend-k-container').clientHeight);
             trendAlgoChart.resize(document.getElementById('trend-algo-container').clientWidth, document.getElementById('trend-algo-container').clientHeight);
