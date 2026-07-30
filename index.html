@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股全方位戰情室 (V28)</title>
+<title>台股全方位戰情室 (V30)</title>
 <style>
 body{margin:0;padding:20px;background:#121212;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;color:#ddd}
 .main-controls{margin-bottom:15px;display:flex;gap:10px;justify-content:center;align-items:center;background:#1e1e1e;padding:10px 20px;border-radius:8px;border:1px solid #333}
@@ -27,10 +27,14 @@ button.search-btn:hover{background:#c51162}
 .compare-controls input{width:120px;padding:6px 10px;background:#333;border:1px solid #555;color:#fff;border-radius:4px}
 .compare-controls .compare-name{color:#26a69a;font-weight:bold}
 .compare-chart-area{flex:1;position:relative;min-height:0}
+.compare-header-row{position:absolute;top:10px;left:10px;z-index:6;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.compare-header-row .chart-label{position:static}
+.compare-ohlc{position:static;font-size:.75rem;gap:8px}
 .trend-controls{padding:10px;border-bottom:1px solid #333;display:flex;gap:15px;align-items:center;flex-wrap:wrap;background:#252525;height:45px}
 .split-chart-container{flex:1;width:100%;position:relative;border-bottom:1px solid #333}
 .chart-label{position:absolute;top:10px;left:10px;z-index:5;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:4px;font-size:.8rem;color:#aaa;pointer-events:none}
-.ma-legend{position:absolute;top:10px;left:180px;right:auto;background:rgba(30,30,30,.9);border:1px solid #444;border-radius:4px;padding:4px 10px;display:flex;align-items:center;gap:12px;z-index:20;white-space:nowrap}
+.top-toolbar-row{position:absolute;top:10px;left:56px;z-index:30;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ma-legend{background:rgba(30,30,30,.9);border:1px solid #444;border-radius:4px;padding:4px 10px;display:flex;align-items:center;gap:12px;white-space:nowrap}
 .ma-item{display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer;user-select:none;font-family:'Segoe UI Mono',monospace}
 .ma-item input[type="checkbox"]{cursor:pointer;margin:0;width:12px;height:12px;accent-color:#555}
 .ma-clear-btn{background:#333;border:1px solid #555;color:#ccc;border-radius:3px;cursor:pointer;font-size:.75rem;padding:2px 8px}
@@ -39,7 +43,7 @@ button.search-btn:hover{background:#c51162}
 .settings-btn:hover{color:#fff}
 .settings-btn svg{width:14px;height:14px;fill:currentColor}
 /* 週期切換 (日/週/月) */
-.tf-group{position:absolute;top:10px;left:56px;z-index:30;background:rgba(30,30,30,.92);border:1px solid #444;border-radius:6px;display:flex;gap:4px;padding:4px}
+.tf-group{background:rgba(30,30,30,.92);border:1px solid #444;border-radius:6px;display:flex;gap:4px;padding:4px}
 .tf-btn{width:36px;height:28px;background:transparent;border:1px solid transparent;border-radius:4px;color:#aaa;cursor:pointer;font-size:.85rem;transition:all .15s}
 .tf-btn:hover{background:#333;color:#fff}
 .tf-btn.active{background:#26a69a;color:#fff;font-weight:bold}
@@ -226,13 +230,16 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
         </div>
     </div>
 
-    <!-- 週期快速切換 -->
-    <div class="tf-group">
-        <button class="tf-btn active" id="tf-D" onclick="setTimeframe('D')" title="日線">日</button>
-        <button class="tf-btn" id="tf-W" onclick="setTimeframe('W')" title="週線">週</button>
-        <button class="tf-btn" id="tf-M" onclick="setTimeframe('M')" title="月線">月</button>
-        <div class="tf-divider"></div>
-        <button class="tf-btn restore-btn" id="tf-restore" onclick="toggleRestoreAdjust()" title="還原股價：自動偵測股票分割/反分割造成的價格斷層，讓歷史K線接續平滑">還原</button>
+    <!-- 週期快速切換 + 均線列（V29：改用 flex 排列，避免元件變寬時互相遮擋） -->
+    <div class="top-toolbar-row">
+        <div class="tf-group">
+            <button class="tf-btn active" id="tf-D" onclick="setTimeframe('D')" title="日線">日</button>
+            <button class="tf-btn" id="tf-W" onclick="setTimeframe('W')" title="週線">週</button>
+            <button class="tf-btn" id="tf-M" onclick="setTimeframe('M')" title="月線">月</button>
+            <div class="tf-divider"></div>
+            <button class="tf-btn restore-btn" id="tf-restore" onclick="toggleRestoreAdjust()" title="還原股價：自動偵測股票分割/反分割造成的價格斷層，讓歷史K線接續平滑">還原</button>
+        </div>
+        <div class="ma-legend" id="ma-legend-container"></div>
     </div>
 
     <!-- 選取圖形後的屬性面板 -->
@@ -264,7 +271,6 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
         </div>
     </div>
 
-    <div class="ma-legend" id="ma-legend-container"></div>
     <div class="ohlc-info" id="ohlc-info"></div>
     <button class="screenshot-btn" onclick="screenshotChart()" title="截圖並儲存">
         <svg viewBox="0 0 24 24"><path d="M4 8 L7 8 L8.5 5.5 L15.5 5.5 L17 8 L20 8 A1 1 0 0 1 21 9 L21 18 A1 1 0 0 1 20 19 L4 19 A1 1 0 0 1 3 18 L3 9 A1 1 0 0 1 4 8 Z" stroke-linejoin="round"/><circle cx="12" cy="13.5" r="3.5"/></svg></button>
@@ -315,7 +321,10 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
             <span class="compare-name" id="compare-name-1"></span>
         </div>
         <div class="compare-chart-area">
-            <div class="chart-label" id="compare-label-1">股價走勢</div>
+            <div class="compare-header-row">
+                <div class="chart-label" id="compare-label-1">股價走勢</div>
+                <div class="ohlc-info compare-ohlc" id="compare-ohlc-1"></div>
+            </div>
             <div id="compare-chart-1" style="width:100%;height:100%"></div>
             <div id="msg-compare-1" class="status-msg">請輸入標的並查詢</div>
         </div>
@@ -328,7 +337,10 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
             <span class="compare-name" id="compare-name-2"></span>
         </div>
         <div class="compare-chart-area">
-            <div class="chart-label" id="compare-label-2">股價走勢</div>
+            <div class="compare-header-row">
+                <div class="chart-label" id="compare-label-2">股價走勢</div>
+                <div class="ohlc-info compare-ohlc" id="compare-ohlc-2"></div>
+            </div>
             <div id="compare-chart-2" style="width:100%;height:100%"></div>
             <div id="msg-compare-2" class="status-msg">請輸入標的並查詢</div>
         </div>
@@ -424,6 +436,7 @@ const LS = {
 let trendKChart, trendKSeries, trendAlgoChart, trendAlgoSeries = {};
 let compareChart = {}, compareSeries = {};   // V28：強弱對比 — {1:..., 2:...}
 let compareLoaded = { 1: false, 2: false };
+let compareData = { 1: [], 2: [] };   // V29：各窗格的K棒資料，供漲跌幅資訊列查表用
 let globalPriceData = [], globalInvestorData = [], investorDateMap = {};
 
 /* V25：把 Firebase 主控台複製出來的 `const firebaseConfig = {...}` 整段文字，寬鬆解析成物件
@@ -719,6 +732,33 @@ function initCharts() {
     document.getElementById('compare-symbol-1').value = LS.get('wr_compareSymbol1', '0050');
     document.getElementById('compare-symbol-2').value = LS.get('wr_compareSymbol2', '2330');
 
+    /* V29：兩個對比視窗滾輪縮放/拖曳同步，並且十字游標互相同步顯示同一天的位置，
+       方便直接比對同一個日期在兩檔標的上的表現。寫法照官方文件的做法：
+       https://tradingview.github.io/lightweight-charts/tutorials/how_to/set-crosshair-position */
+    compareChart[1].timeScale().subscribeVisibleLogicalRangeChange(range => {
+        if (range) compareChart[2].timeScale().setVisibleLogicalRange(range);
+    });
+    compareChart[2].timeScale().subscribeVisibleLogicalRangeChange(range => {
+        if (range) compareChart[1].timeScale().setVisibleLogicalRange(range);
+    });
+    function getCompareCrosshairPoint(series, param) {
+        if (!param.time) return null;
+        const p = param.seriesData.get(series);
+        return p || null;
+    }
+    function syncCompareCrosshair(chart, series, dataPoint) {
+        if (dataPoint) chart.setCrosshairPosition(dataPoint.close ?? dataPoint.value, dataPoint.time, series);
+        else chart.clearCrosshairPosition();
+    }
+    compareChart[1].subscribeCrosshairMove(param => {
+        updateCompareOhlcInfo(1, param);
+        syncCompareCrosshair(compareChart[2], compareSeries[2], getCompareCrosshairPoint(compareSeries[1], param));
+    });
+    compareChart[2].subscribeCrosshairMove(param => {
+        updateCompareOhlcInfo(2, param);
+        syncCompareCrosshair(compareChart[1], compareSeries[1], getCompareCrosshairPoint(compareSeries[2], param));
+    });
+
     window.addEventListener('resize', resizeAllCharts);
 
     const today = new Date(), past = new Date();
@@ -770,6 +810,29 @@ function initCharts() {
 }
 
 /* V24：左上角 開高低收／成交量 資訊列 */
+/* V29：強弱對比視窗的漲跌幅資訊列 — 十字游標移動時顯示對應日期，移開則顯示最新一根K棒 */
+function updateCompareOhlcInfo(n, param) {
+    const el = document.getElementById(`compare-ohlc-${n}`);
+    if (!el) return;
+    let bar = null;
+    if (param && param.time) {
+        let t = param.time;
+        if (typeof t === 'object') t = `${t.year}-${String(t.month).padStart(2,'0')}-${String(t.day).padStart(2,'0')}`;
+        bar = compareData[n].find(d => d.time === t) || null;
+    }
+    if (!bar) bar = compareData[n].length ? compareData[n][compareData[n].length - 1] : null;
+    if (!bar) { el.innerHTML = ''; return; }
+    const up = bar.close >= bar.open;
+    const color = up ? '#ef232a' : '#26a69a';
+    const pct = bar.open ? (((bar.close - bar.open) / bar.open) * 100).toFixed(2) : '0.00';
+    el.innerHTML = `<span><span class="oi-label">日期</span><span class="oi-val">${bar.time}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">開</span><span class="oi-val">${bar.open.toFixed(2)}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">高</span><span class="oi-val">${bar.high.toFixed(2)}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">低</span><span class="oi-val">${bar.low.toFixed(2)}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">收</span><span class="oi-val">${bar.close.toFixed(2)}</span></span>` +
+        `<span style="color:${color}">${up?'+':''}${pct}%</span>`;
+}
+
 function updateOhlcInfo(bar) {
     const el = document.getElementById('ohlc-info');
     if (!el) return;
@@ -1604,11 +1667,15 @@ async function fetchCompareData(n) {
         document.getElementById(`compare-label-${n}`).textContent = stockName ? `股價走勢 - ${symbol} ${stockName}` : `股價走勢 - ${symbol}`;
         if (priceJson.data && priceJson.data.length > 0) {
             const raw = priceJson.data.map(i => ({ time: i.date, open: i.open, high: i.max, low: i.min, close: i.close, volume: i.Trading_Volume }));
-            compareSeries[n].setData(sanitizePriceData(raw));
+            compareData[n] = sanitizePriceData(raw);   // V29
+            compareSeries[n].setData(compareData[n]);
             compareChart[n].timeScale().fitContent();
+            updateCompareOhlcInfo(n, null);   // V29：預設顯示最新一根K棒的漲跌幅資訊
             msgEl.style.display = 'none';
         } else {
+            compareData[n] = [];   // V29
             compareSeries[n].setData([]);
+            updateCompareOhlcInfo(n, null);   // V29：清空資訊列
             const reason = priceJson.msg ? `（${priceJson.msg}）` : '（可能代碼錯誤、尚未上市，或資料來源暫無資料）';
             msgEl.textContent = `查無「${symbol}」的K線資料 ${reason}`;
             msgEl.style.display = 'block';
