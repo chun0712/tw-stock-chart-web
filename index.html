@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股全方位戰情室 (V30)</title>
+<title>台股全方位戰情室 (V32)</title>
 <style>
 body{margin:0;padding:20px;background:#121212;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;color:#ddd}
 .main-controls{margin-bottom:15px;display:flex;gap:10px;justify-content:center;align-items:center;background:#1e1e1e;padding:10px 20px;border-radius:8px;border:1px solid #333}
@@ -29,7 +29,10 @@ button.search-btn:hover{background:#c51162}
 .compare-chart-area{flex:1;position:relative;min-height:0}
 .compare-header-row{position:absolute;top:10px;left:10px;z-index:6;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .compare-header-row .chart-label{position:static}
-.compare-ohlc{position:static;font-size:.75rem;gap:8px}
+/* V31：這裡必須用「兩層class」的寫法拉高優先度。因為 .ohlc-info 這條規則寫在樣式表比較後面，
+   單用 .compare-ohlc（同樣只有一層class）會被它的 position:absolute/top/left 蓋掉，
+   導致資訊列還是掉到標籤下面變成兩行。 */
+.compare-header-row .compare-ohlc{position:static;top:auto;left:auto;font-size:.75rem;gap:8px}
 .trend-controls{padding:10px;border-bottom:1px solid #333;display:flex;gap:15px;align-items:center;flex-wrap:wrap;background:#252525;height:45px}
 .split-chart-container{flex:1;width:100%;position:relative;border-bottom:1px solid #333}
 .chart-label{position:absolute;top:10px;left:10px;z-index:5;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:4px;font-size:.8rem;color:#aaa;pointer-events:none}
@@ -437,6 +440,7 @@ let trendKChart, trendKSeries, trendAlgoChart, trendAlgoSeries = {};
 let compareChart = {}, compareSeries = {};   // V28：強弱對比 — {1:..., 2:...}
 let compareLoaded = { 1: false, 2: false };
 let compareData = { 1: [], 2: [] };   // V29：各窗格的K棒資料，供漲跌幅資訊列查表用
+let compareSyncing = false;           // V32：防止兩個視窗互相同步游標時無限遞迴
 let globalPriceData = [], globalInvestorData = [], investorDateMap = {};
 
 /* V25：把 Firebase 主控台複製出來的 `const firebaseConfig = {...}` 整段文字，寬鬆解析成物件
@@ -732,32 +736,33 @@ function initCharts() {
     document.getElementById('compare-symbol-1').value = LS.get('wr_compareSymbol1', '0050');
     document.getElementById('compare-symbol-2').value = LS.get('wr_compareSymbol2', '2330');
 
-    /* V29：兩個對比視窗滾輪縮放/拖曳同步，並且十字游標互相同步顯示同一天的位置，
-       方便直接比對同一個日期在兩檔標的上的表現。寫法照官方文件的做法：
-       https://tradingview.github.io/lightweight-charts/tutorials/how_to/set-crosshair-position */
+    /* V29：兩個對比視窗滾輪縮放/拖曳同步，並且十字游標互相同步顯示同一天的位置。
+       V32：改成不管滑鼠在哪一個視窗，「上下兩個資訊列都會一起更新成同一天的資料」，
+       這樣才能直接對照同一個日期兩檔標的的表現。 */
     compareChart[1].timeScale().subscribeVisibleLogicalRangeChange(range => {
         if (range) compareChart[2].timeScale().setVisibleLogicalRange(range);
     });
     compareChart[2].timeScale().subscribeVisibleLogicalRangeChange(range => {
         if (range) compareChart[1].timeScale().setVisibleLogicalRange(range);
     });
-    function getCompareCrosshairPoint(series, param) {
-        if (!param.time) return null;
-        const p = param.seriesData.get(series);
-        return p || null;
+    /* 把另一個視窗的十字游標移到同一天，並且用「那個視窗自己的收盤價」定位水平線，
+       這樣橫線才會落在該檔股票正確的價格上（而不是沿用來源視窗的價格） */
+    function syncCompareCrosshairByTime(targetN, timeStr) {
+        const bar = timeStr ? compareData[targetN].find(d => d.time === timeStr) : null;
+        if (bar) compareChart[targetN].setCrosshairPosition(bar.close, bar.time, compareSeries[targetN]);
+        else compareChart[targetN].clearCrosshairPosition();
     }
-    function syncCompareCrosshair(chart, series, dataPoint) {
-        if (dataPoint) chart.setCrosshairPosition(dataPoint.close ?? dataPoint.value, dataPoint.time, series);
-        else chart.clearCrosshairPosition();
+    function onCompareCrosshairMove(sourceN, param) {
+        if (compareSyncing) return;   // 防止程式化設定游標時互相觸發造成無限迴圈
+        const t = normalizeChartTime(param.time);
+        updateCompareOhlcInfo(1, t);   // V32：兩個資訊列一起更新
+        updateCompareOhlcInfo(2, t);
+        compareSyncing = true;
+        syncCompareCrosshairByTime(sourceN === 1 ? 2 : 1, t);
+        compareSyncing = false;
     }
-    compareChart[1].subscribeCrosshairMove(param => {
-        updateCompareOhlcInfo(1, param);
-        syncCompareCrosshair(compareChart[2], compareSeries[2], getCompareCrosshairPoint(compareSeries[1], param));
-    });
-    compareChart[2].subscribeCrosshairMove(param => {
-        updateCompareOhlcInfo(2, param);
-        syncCompareCrosshair(compareChart[1], compareSeries[1], getCompareCrosshairPoint(compareSeries[2], param));
-    });
+    compareChart[1].subscribeCrosshairMove(param => onCompareCrosshairMove(1, param));
+    compareChart[2].subscribeCrosshairMove(param => onCompareCrosshairMove(2, param));
 
     window.addEventListener('resize', resizeAllCharts);
 
@@ -810,16 +815,18 @@ function initCharts() {
 }
 
 /* V24：左上角 開高低收／成交量 資訊列 */
-/* V29：強弱對比視窗的漲跌幅資訊列 — 十字游標移動時顯示對應日期，移開則顯示最新一根K棒 */
-function updateCompareOhlcInfo(n, param) {
+/* V32：Lightweight Charts 的 time 可能是字串或 {year,month,day} 物件，統一轉成 YYYY-MM-DD */
+function normalizeChartTime(t) {
+    if (!t) return null;
+    if (typeof t === 'object') return `${t.year}-${String(t.month).padStart(2,'0')}-${String(t.day).padStart(2,'0')}`;
+    return t;
+}
+
+/* V29：強弱對比視窗的漲跌幅資訊列 — 傳入日期字串則顯示該天，傳 null 則顯示最新一根K棒 */
+function updateCompareOhlcInfo(n, timeStr) {
     const el = document.getElementById(`compare-ohlc-${n}`);
     if (!el) return;
-    let bar = null;
-    if (param && param.time) {
-        let t = param.time;
-        if (typeof t === 'object') t = `${t.year}-${String(t.month).padStart(2,'0')}-${String(t.day).padStart(2,'0')}`;
-        bar = compareData[n].find(d => d.time === t) || null;
-    }
+    let bar = timeStr ? (compareData[n].find(d => d.time === timeStr) || null) : null;
     if (!bar) bar = compareData[n].length ? compareData[n][compareData[n].length - 1] : null;
     if (!bar) { el.innerHTML = ''; return; }
     const up = bar.close >= bar.open;
