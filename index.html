@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股全方位戰情室 (V27)</title>
+<title>台股全方位戰情室 (V28)</title>
 <style>
 body{margin:0;padding:20px;background:#121212;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;color:#ddd}
 .main-controls{margin-bottom:15px;display:flex;gap:10px;justify-content:center;align-items:center;background:#1e1e1e;padding:10px 20px;border-radius:8px;border:1px solid #333}
@@ -18,6 +18,15 @@ button.search-btn:hover{background:#c51162}
 .content-area.active{display:block}
 #view-trend{display:none;flex-direction:column}
 #view-trend.active{display:flex}
+/* V28：強弱對比（雙圖，各自獨立輸入標的） */
+#view-compare{display:none;flex-direction:column}
+#view-compare.active{display:flex}
+.compare-pane{flex:1;display:flex;flex-direction:column;min-height:0;border-bottom:1px solid #333}
+.compare-pane:last-child{border-bottom:none}
+.compare-controls{padding:8px 12px;border-bottom:1px solid #333;display:flex;gap:10px;align-items:center;background:#252525;height:40px;flex-shrink:0}
+.compare-controls input{width:120px;padding:6px 10px;background:#333;border:1px solid #555;color:#fff;border-radius:4px}
+.compare-controls .compare-name{color:#26a69a;font-weight:bold}
+.compare-chart-area{flex:1;position:relative;min-height:0}
 .trend-controls{padding:10px;border-bottom:1px solid #333;display:flex;gap:15px;align-items:center;flex-wrap:wrap;background:#252525;height:45px}
 .split-chart-container{flex:1;width:100%;position:relative;border-bottom:1px solid #333}
 .chart-label{position:absolute;top:10px;left:10px;z-index:5;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:4px;font-size:.8rem;color:#aaa;pointer-events:none}
@@ -98,6 +107,12 @@ button.search-btn:hover{background:#c51162}
 .modal-content{background:#252525;padding:20px;border-radius:8px;border:1px solid #444;width:560px;color:#ddd}
 .modal-title{font-size:1.1rem;margin-bottom:15px;font-weight:bold;color:#fff;text-align:center}
 .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+/* V28：VWMA 設定區塊 */
+.modal-subtitle{font-size:.95rem;font-weight:bold;color:#ccc;margin:18px 0 10px;padding-top:14px;border-top:1px solid #3a3a3a;display:flex;align-items:center;gap:8px}
+.vwma-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.vwma-field{display:flex;flex-direction:column;gap:4px}
+.vwma-field label{font-size:.75rem;color:#888}
+.vwma-select{padding:5px;background:#333;border:1px solid #555;color:#fff;border-radius:4px;font-size:.85rem}
 .form-group{margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
 .form-group label{font-size:.9rem;color:#aaa;width:40px}
 .form-row{display:flex;gap:5px;align-items:center;flex:1}
@@ -176,6 +191,7 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
 <div class="tabs">
     <div class="tab" onclick="switchTab('watchlist')">⭐ 自選股</div>
     <div class="tab active" onclick="switchTab('chart')">K 線圖 (全覽)</div>
+    <div class="tab" onclick="switchTab('compare')">強弱對比</div>
     <div class="tab" onclick="switchTab('table')">三大法人明細</div>
     <div class="tab" onclick="switchTab('trend')">趨勢透視 (雙圖)</div>
 </div>
@@ -290,12 +306,59 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
     <div id="msg-trend" class="status-msg">請先查詢資料</div>
 </div>
 
+<div id="view-compare" class="content-area">
+    <div class="compare-pane">
+        <div class="compare-controls">
+            <label>標的1：</label>
+            <input type="text" id="compare-symbol-1" placeholder="例如 0050">
+            <button class="search-btn" style="padding:5px 14px;font-size:.85rem" onclick="fetchCompareData(1)">查詢</button>
+            <span class="compare-name" id="compare-name-1"></span>
+        </div>
+        <div class="compare-chart-area">
+            <div class="chart-label" id="compare-label-1">股價走勢</div>
+            <div id="compare-chart-1" style="width:100%;height:100%"></div>
+            <div id="msg-compare-1" class="status-msg">請輸入標的並查詢</div>
+        </div>
+    </div>
+    <div class="compare-pane">
+        <div class="compare-controls">
+            <label>標的2：</label>
+            <input type="text" id="compare-symbol-2" placeholder="例如 2330">
+            <button class="search-btn" style="padding:5px 14px;font-size:.85rem" onclick="fetchCompareData(2)">查詢</button>
+            <span class="compare-name" id="compare-name-2"></span>
+        </div>
+        <div class="compare-chart-area">
+            <div class="chart-label" id="compare-label-2">股價走勢</div>
+            <div id="compare-chart-2" style="width:100%;height:100%"></div>
+            <div id="msg-compare-2" class="status-msg">請輸入標的並查詢</div>
+        </div>
+    </div>
+</div>
+
 <div id="ma-modal" class="modal-overlay">
     <div class="modal-content">
         <div class="modal-title">均線參數設定 (費波那契)</div>
         <div class="modal-grid">
             <div><div id="ma-input-container-left"></div></div>
             <div><div id="ma-input-container-right"></div></div>
+        </div>
+        <div class="modal-subtitle">📊 VWMA（成交量加權移動平均線）</div>
+        <div class="vwma-row">
+            <div class="vwma-field"><label>長度</label><input type="number" id="vwma-period" class="form-input" min="1" style="width:44px"></div>
+            <div class="vwma-field"><label>來源</label>
+                <select id="vwma-source" class="vwma-select">
+                    <option value="close">收盤價</option>
+                    <option value="open">開盤價</option>
+                    <option value="high">最高價</option>
+                    <option value="low">最低價</option>
+                    <option value="hl2">(高+低)/2</option>
+                    <option value="hlc3">(高+低+收)/3</option>
+                    <option value="ohlc4">(開+高+低+收)/4</option>
+                </select>
+            </div>
+            <div class="vwma-field"><label>偏移</label><input type="number" id="vwma-offset" class="form-input" style="width:44px"></div>
+            <div class="vwma-field"><label>顏色</label><input type="color" id="vwma-color" class="color-picker"></div>
+            <div class="vwma-field"><label>線寬</label><input type="number" id="vwma-width" class="ma-width-input" min="1" max="6" step="0.5"></div>
         </div>
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeSettings()">取消</button>
@@ -359,6 +422,8 @@ const LS = {
     }
 };
 let trendKChart, trendKSeries, trendAlgoChart, trendAlgoSeries = {};
+let compareChart = {}, compareSeries = {};   // V28：強弱對比 — {1:..., 2:...}
+let compareLoaded = { 1: false, 2: false };
 let globalPriceData = [], globalInvestorData = [], investorDateMap = {};
 
 /* V25：把 Firebase 主控台複製出來的 `const firebaseConfig = {...}` 整段文字，寬鬆解析成物件
@@ -530,12 +595,61 @@ let currentSymbol = '';
 let restoreAdjust = LS.get('wr_restoreAdjust', false);   // V27：是否套用「還原股價」
 loadMAVisible();   // 初始載入目前週期對應的勾選狀態（需在 currentTF 宣告之後執行）
 
+/* V28：VWMA（成交量加權移動平均線） */
+let vwmaConfig = Object.assign(
+    { period: 20, source: 'close', offset: 0, color: '#FFFFFF', width: 1, visible: false },
+    LS.get('wr_vwmaConfig', {})
+);
+vwmaConfig.series = null;
+function persistVwma() {
+    LS.set('wr_vwmaConfig', { period: vwmaConfig.period, source: vwmaConfig.source, offset: vwmaConfig.offset, color: vwmaConfig.color, width: vwmaConfig.width, visible: vwmaConfig.visible });
+}
+function vwmaSourceValue(bar, source) {
+    switch (source) {
+        case 'open': return bar.open;
+        case 'high': return bar.high;
+        case 'low':  return bar.low;
+        case 'hl2':  return (bar.high + bar.low) / 2;
+        case 'hlc3': return (bar.high + bar.low + bar.close) / 3;
+        case 'ohlc4':return (bar.open + bar.high + bar.low + bar.close) / 4;
+        default:     return bar.close;
+    }
+}
+/* VWMA_i = Σ(來源價 × 成交量) / Σ成交量，取最近 period 根K棒；offset 讓整條線左右平移對應的根數 */
+function calculateVWMA(data, period, source, offset) {
+    const raw = [];
+    for (let i = period - 1; i < data.length; i++) {
+        let sumPV = 0, sumV = 0;
+        for (let j = i - period + 1; j <= i; j++) {
+            const vol = data[j].volume || 0;
+            sumPV += vwmaSourceValue(data[j], source) * vol;
+            sumV += vol;
+        }
+        raw.push({ idx: i, value: sumV > 0 ? sumPV / sumV : vwmaSourceValue(data[i], source) });
+    }
+    const off = offset || 0;
+    if (off === 0) return raw.map(p => ({ time: data[p.idx].time, value: p.value }));
+    const result = [];
+    raw.forEach(p => {
+        const t = p.idx + off;
+        if (t >= 0 && t < data.length) result.push({ time: data[t].time, value: p.value });
+    });
+    return result;
+}
+function toggleVwma() {
+    const checked = document.getElementById('vwma-check').checked;
+    vwmaConfig.visible = checked;
+    vwmaConfig.series.applyOptions({ visible: checked });
+    persistVwma();
+}
+
 function renderMaControls() {
     const legendContainer = document.getElementById('ma-legend-container');
     let html = '';
     maConfig.forEach((cfg, idx) => {
         html += `<label class="ma-item" style="color:${cfg.color}"><input type="checkbox" id="ma-check-${idx}" ${cfg.visible?'checked':''} onchange="toggleMA(${idx})"><span id="ma-label-${idx}">MA${cfg.period}</span></label>`;
     });
+    html += `<label class="ma-item" style="color:${vwmaConfig.color}"><input type="checkbox" id="vwma-check" ${vwmaConfig.visible?'checked':''} onchange="toggleVwma()"><span>VWMA</span></label>`;
     html += `<button class="ma-clear-btn" onclick="clearAllMA()">全消</button>`;
     html += `<button class="ma-sync-btn" id="ma-sync-btn" onclick="toggleMASync()" title="開啟：日/週/月共用同一組勾選狀態；關閉：各週期可各自勾選不同均線">${maSyncTF ? '週期同步:開' : '週期同步:關'}</button>`;
     html += `<button class="settings-btn" onclick="openSettings()" title="設定參數"><svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></button>`;
@@ -583,6 +697,7 @@ function initCharts() {
     maConfig.forEach(cfg => {
         cfg.series = mainChart.addSeries(LightweightCharts.LineSeries, { color: cfg.color, visible: cfg.visible, lineWidth: cfg.width || 1, ...maOpts });
     });
+    vwmaConfig.series = mainChart.addSeries(LightweightCharts.LineSeries, { color: vwmaConfig.color, visible: vwmaConfig.visible, lineWidth: vwmaConfig.width || 1, ...maOpts });   // V28
 
     trendKChart = LightweightCharts.createChart(document.getElementById('trend-k-container'), kOpts);
     trendKSeries = trendKChart.addSeries(LightweightCharts.CandlestickSeries, {
@@ -593,6 +708,16 @@ function initCharts() {
     trendAlgoSeries['Trust'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#b0279d', lineWidth: 2 });
     trendAlgoSeries['Dealer'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#ff6d00', lineWidth: 2 });
     trendAlgoSeries['Total'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#eeeeee', lineWidth: 2 });
+
+    // V28：強弱對比 — 兩個各自獨立的K線圖，方便輸入不同標的（例如大盤 vs 個股）比對走勢
+    [1, 2].forEach(n => {
+        compareChart[n] = LightweightCharts.createChart(document.getElementById(`compare-chart-${n}`), kOpts);
+        compareSeries[n] = compareChart[n].addSeries(LightweightCharts.CandlestickSeries, {
+            upColor: '#ef232a', downColor: '#26a69a', borderVisible: false, wickUpColor: '#ef232a', wickDownColor: '#26a69a'
+        });
+    });
+    document.getElementById('compare-symbol-1').value = LS.get('wr_compareSymbol1', '0050');
+    document.getElementById('compare-symbol-2').value = LS.get('wr_compareSymbol2', '2330');
 
     window.addEventListener('resize', resizeAllCharts);
 
@@ -737,6 +862,11 @@ function openSettings() {
         document.getElementById(`ma-color-${idx}`).value = cfg.color;
         document.getElementById(`ma-width-${idx}`).value = cfg.width || 1;
     });
+    document.getElementById('vwma-period').value = vwmaConfig.period;   // V28
+    document.getElementById('vwma-source').value = vwmaConfig.source;
+    document.getElementById('vwma-offset').value = vwmaConfig.offset;
+    document.getElementById('vwma-color').value = vwmaConfig.color;
+    document.getElementById('vwma-width').value = vwmaConfig.width || 1;
     maModal.style.display = 'flex';
 }
 function closeSettings() { maModal.style.display = 'none'; }
@@ -752,6 +882,18 @@ function saveSettings() {
         document.getElementById(`ma-label-${idx}`).textContent = `MA${cfg.period}`;
         document.getElementById(`ma-label-${idx}`).parentNode.style.color = cfg.color;
     });
+    // V28：VWMA 設定
+    vwmaConfig.period = parseInt(document.getElementById('vwma-period').value) || vwmaConfig.period;
+    vwmaConfig.source = document.getElementById('vwma-source').value;
+    vwmaConfig.offset = parseInt(document.getElementById('vwma-offset').value) || 0;
+    vwmaConfig.color = document.getElementById('vwma-color').value;
+    vwmaConfig.width = parseFloat(document.getElementById('vwma-width').value) || 1;
+    if (displayData.length > 0) {
+        vwmaConfig.series.setData(calculateVWMA(displayData, vwmaConfig.period, vwmaConfig.source, vwmaConfig.offset));
+        vwmaConfig.series.applyOptions({ color: vwmaConfig.color, lineWidth: vwmaConfig.width });
+    }
+    renderMaControls();   // 重新畫勾選列，讓 VWMA 項目的顏色標籤同步更新
+    persistVwma();
     persistMAShared();   // V24：記憶均線週期/顏色/線寬（與勾選狀態分開儲存）
     closeSettings();
 }
@@ -892,6 +1034,7 @@ function applyPriceData(fit = true) {
         msgEl.style.display = 'block';
         mainSeries.setData([]); volumeSeries.setData([]);
         maConfig.forEach(cfg => cfg.series.setData([]));
+        vwmaConfig.series.setData([]);   // V28
         return;
     }
     try {
@@ -907,6 +1050,8 @@ function applyPriceData(fit = true) {
             const lbl = document.getElementById(`ma-label-${idx}`);
             if (lbl) { lbl.textContent = `MA${cfg.period}`; lbl.parentNode.style.color = cfg.color; }
         });
+        vwmaConfig.series.setData(calculateVWMA(displayData, vwmaConfig.period, vwmaConfig.source, vwmaConfig.offset));   // V28
+        vwmaConfig.series.applyOptions({ color: vwmaConfig.color, visible: vwmaConfig.visible, lineWidth: vwmaConfig.width || 1 });
         msgEl.style.display = 'none';
         if (fit) mainChart.timeScale().fitContent();
         updateOhlcInfo(displayData[displayData.length - 1]);   // V24：預設顯示最新一根K棒
@@ -1434,6 +1579,48 @@ function hexToRgba(hex, alpha) {
 }
 
 /* ══════════ 資料抓取 ══════════ */
+/* V28：強弱對比 — 兩個窗格各自獨立查詢、互不影響，方便輸入不同標的（例如大盤代理 0050 vs 個股）比對走勢 */
+async function fetchCompareData(n) {
+    const input = document.getElementById(`compare-symbol-${n}`);
+    const symbol = input.value.trim();
+    if (!symbol) return alert('請輸入代碼');
+    LS.set(`wr_compareSymbol${n}`, symbol);
+    document.getElementById(`compare-name-${n}`).textContent = '';
+    const msgEl = document.getElementById(`msg-compare-${n}`);
+    msgEl.style.display = 'block';
+    msgEl.textContent = '載入中...';
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 1095);
+    const startDate = pastDate.toISOString().split('T')[0];
+    try {
+        const [infoRes, priceRes] = await Promise.all([
+            fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo&data_id=${symbol}`),
+            fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${symbol}&start_date=${startDate}`)
+        ]);
+        const infoJson = await infoRes.json();
+        const priceJson = await priceRes.json();
+        const stockName = (infoJson.data && infoJson.data.length > 0) ? infoJson.data[0].stock_name : '';
+        document.getElementById(`compare-name-${n}`).textContent = stockName;
+        document.getElementById(`compare-label-${n}`).textContent = stockName ? `股價走勢 - ${symbol} ${stockName}` : `股價走勢 - ${symbol}`;
+        if (priceJson.data && priceJson.data.length > 0) {
+            const raw = priceJson.data.map(i => ({ time: i.date, open: i.open, high: i.max, low: i.min, close: i.close, volume: i.Trading_Volume }));
+            compareSeries[n].setData(sanitizePriceData(raw));
+            compareChart[n].timeScale().fitContent();
+            msgEl.style.display = 'none';
+        } else {
+            compareSeries[n].setData([]);
+            const reason = priceJson.msg ? `（${priceJson.msg}）` : '（可能代碼錯誤、尚未上市，或資料來源暫無資料）';
+            msgEl.textContent = `查無「${symbol}」的K線資料 ${reason}`;
+            msgEl.style.display = 'block';
+        }
+        compareLoaded[n] = true;
+    } catch (err) {
+        console.error('比較圖取得資料失敗:', err);
+        msgEl.textContent = '資料讀取失敗，請稍後再試';
+        msgEl.style.display = 'block';
+    }
+}
+
 async function fetchData() {
     const symbol = symbolInput.value.trim();
     if (!symbol) return alert("請輸入代碼");
@@ -1561,6 +1748,12 @@ function resizeAllCharts() {
         trendKChart.resize(document.getElementById('trend-k-container').clientWidth, document.getElementById('trend-k-container').clientHeight);
         trendAlgoChart.resize(document.getElementById('trend-algo-container').clientWidth, document.getElementById('trend-algo-container').clientHeight);
     }
+    if (document.getElementById('view-compare').classList.contains('active')) {   // V28
+        [1, 2].forEach(n => {
+            const el = document.getElementById(`compare-chart-${n}`);
+            compareChart[n].resize(el.clientWidth, el.clientHeight);
+        });
+    }
 }
 
 function switchTab(tab) {
@@ -1583,6 +1776,16 @@ function switchTab(tab) {
             mainChart.resize(c.clientWidth, c.clientHeight);
             resizeDrawCanvas();
         });
+    } else if (tab === 'compare') {   // V28
+        requestAnimationFrame(() => {
+            [1, 2].forEach(n => {
+                const el = document.getElementById(`compare-chart-${n}`);
+                compareChart[n].resize(el.clientWidth, el.clientHeight);
+            });
+        });
+        // 第一次切到這個頁籤才查詢，避免每次載入頁面都多打不需要的 API（節省 FinMind 流量限制）
+        if (!compareLoaded[1]) fetchCompareData(1);
+        if (!compareLoaded[2]) fetchCompareData(2);
     }
 }
 
