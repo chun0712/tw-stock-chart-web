@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股全方位戰情室 (V32)</title>
+<title>台股全方位戰情室 (V46)</title>
 <style>
 body{margin:0;padding:20px;background:#121212;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;color:#ddd}
 .main-controls{margin-bottom:15px;display:flex;gap:10px;justify-content:center;align-items:center;background:#1e1e1e;padding:10px 20px;border-radius:8px;border:1px solid #333}
@@ -16,6 +16,31 @@ button.search-btn:hover{background:#c51162}
 .tab.active{background:#2d2d2d;color:#26a69a;font-weight:bold;border-bottom:1px solid #2d2d2d;margin-bottom:-1px}
 .content-area{width:95%;height:75vh;border:1px solid #444;background:#1e1e1e;position:relative;display:none}
 .content-area.active{display:block}
+/* V39：K線圖頁面右側自選股欄（類似 TradingView） */
+#view-chart.active{display:flex;flex-direction:row}
+.chart-main-area{flex:1;position:relative;min-width:0;height:100%;overflow:hidden}
+.chart-sidebar{width:236px;flex-shrink:0;min-width:0;border-left:1px solid #333;background:#141414;display:flex;flex-direction:column;overflow:hidden;transition:width .15s}
+.chart-sidebar.collapsed{width:0;border-left:none}
+.cs-header{display:flex;align-items:center;gap:6px;padding:6px 8px;background:#0b2a4a;color:#cfe3ff;font-size:.8rem;font-weight:bold;flex-shrink:0}
+.cs-header .cs-add{margin-left:auto;display:flex;gap:4px}
+.cs-header input{width:74px;padding:3px 6px;background:#1a1a1a;border:1px solid #456;color:#fff;border-radius:3px;font-size:.75rem}
+.cs-header button{background:#26a69a;border:none;color:#fff;border-radius:3px;cursor:pointer;font-size:.75rem;padding:3px 7px}
+.cs-header button:hover{background:#2bbbad}
+.cs-colhead{display:flex;align-items:center;gap:6px;padding:4px 8px;background:#10233a;color:#8fa8c8;font-size:.7rem;border-bottom:1px solid #24374f;flex-shrink:0}
+.cs-colhead .cs-code,.cs-colhead .cs-name{color:#8fa8c8}
+.cs-list{flex:1;overflow-y:auto}
+.cs-row{display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid #1e1e1e;cursor:pointer;font-size:.78rem}
+.cs-row:hover{background:#1c2b3f}
+.cs-row.current{background:#123;border-left:3px solid #26a69a;padding-left:5px}
+.cs-code{font-family:monospace;color:#8ab4f8;width:52px;flex-shrink:0}
+.cs-name{color:#eee;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-price{color:#ddd;text-align:right;width:52px;flex-shrink:0}
+.cs-pct{text-align:right;width:52px;flex-shrink:0}
+.cs-empty{color:#666;font-size:.75rem;padding:14px 10px;line-height:1.7;text-align:center}
+/* 收合把手 */
+.cs-toggle{position:absolute;top:10px;right:44px;z-index:26;width:30px;height:30px;background:rgba(30,30,30,.9);border:1px solid #555;border-radius:4px;color:#aaa;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.cs-toggle:hover{background:#26a69a;color:#fff;border-color:#26a69a}
+.cs-toggle svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
 #view-trend{display:none;flex-direction:column}
 #view-trend.active{display:flex}
 /* V28：強弱對比（雙圖，各自獨立輸入標的） */
@@ -27,7 +52,10 @@ button.search-btn:hover{background:#c51162}
 .compare-controls input{width:120px;padding:6px 10px;background:#333;border:1px solid #555;color:#fff;border-radius:4px}
 .compare-controls .compare-name{color:#26a69a;font-weight:bold}
 .compare-chart-area{flex:1;position:relative;min-height:0}
-.compare-header-row{position:absolute;top:10px;left:10px;z-index:6;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.compare-chart-area .draw-toolbar{top:8px;left:8px;padding:4px}
+.compare-chart-area .draw-tool-btn{width:28px;height:28px}
+.compare-chart-area .draw-tool-btn svg{width:15px;height:15px}
+.compare-header-row{position:absolute;top:10px;left:56px;z-index:6;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .compare-header-row .chart-label{position:static}
 /* V31：這裡必須用「兩層class」的寫法拉高優先度。因為 .ohlc-info 這條規則寫在樣式表比較後面，
    單用 .compare-ohlc（同樣只有一層class）會被它的 position:absolute/top/left 蓋掉，
@@ -42,6 +70,11 @@ button.search-btn:hover{background:#c51162}
 .ma-item input[type="checkbox"]{cursor:pointer;margin:0;width:12px;height:12px;accent-color:#555}
 .ma-clear-btn{background:#333;border:1px solid #555;color:#ccc;border-radius:3px;cursor:pointer;font-size:.75rem;padding:2px 8px}
 .ma-clear-btn:hover{background:#f50057;color:#fff;border-color:#f50057}
+/* V46：一鍵隱藏/顯示指標（眼睛圖示，仿 TradingView） */
+.ma-eye-btn{background:transparent;border:1px solid #555;color:#ccc;border-radius:3px;cursor:pointer;padding:2px 6px;display:flex;align-items:center;height:20px}
+.ma-eye-btn:hover{background:#333;color:#fff;border-color:#888}
+.ma-eye-btn.hidden-state{color:#ff9100;border-color:#ff9100}
+.ma-eye-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7}
 .settings-btn{background:transparent;border:none;cursor:pointer;padding:0 0 0 10px;display:flex;align-items:center;color:#aaa;border-left:1px solid #555;height:16px}
 .settings-btn:hover{color:#fff}
 .settings-btn svg{width:14px;height:14px;fill:currentColor}
@@ -69,8 +102,8 @@ button.search-btn:hover{background:#c51162}
 .draw-tool-btn.active{background:#26a69a;color:#fff}
 .draw-tool-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6}
 .draw-tool-btn.danger:hover{background:#f50057}
-#draw-canvas{position:absolute;top:0;left:0;z-index:15;pointer-events:none}
-#draw-canvas.drawing{pointer-events:auto;cursor:crosshair}
+.draw-canvas{position:absolute;top:0;left:0;z-index:15;pointer-events:none}
+.draw-canvas.drawing{pointer-events:auto;cursor:crosshair}
 /* 圖形屬性面板 */
 .shape-panel{position:absolute;top:86px;left:56px;z-index:40;background:rgba(30,30,30,.97);border:1px solid #555;border-radius:6px;padding:10px;display:none;flex-direction:column;gap:8px;font-size:.85rem;box-shadow:0 4px 12px rgba(0,0,0,.6);max-width:220px}
 .shape-panel.show{display:flex}
@@ -151,14 +184,38 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
 .up{color:#ff5252}.down{color:#00e676}.neutral{color:#888}
 .status-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;pointer-events:none;display:none}
 /* V27：自選股 */
-.watchlist-wrapper{padding:16px;max-width:640px;margin:0 auto}
+.watchlist-wrapper{padding:14px;max-width:900px;margin:0 auto}
 .watchlist-empty{color:#777;text-align:center;padding:40px 20px;font-size:.9rem;line-height:1.8}
-.watchlist-row{display:flex;align-items:center;gap:14px;padding:12px 16px;background:#1e1e1e;border:1px solid #333;border-radius:6px;margin-bottom:8px;cursor:pointer;transition:all .15s}
-.watchlist-row:hover{background:#262626;border-color:#26a69a}
-.wl-symbol{font-family:monospace;font-weight:bold;color:#4dabf7;width:60px}
-.wl-name{flex:1;color:#ddd}
-.wl-remove{background:transparent;border:none;color:#666;cursor:pointer;font-size:1rem;padding:4px 8px;border-radius:4px}
-.wl-remove:hover{color:#f44336;background:#f4433622}
+/* V36：自選股新增列 */
+.wl-addbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.wl-addbar input{width:130px;padding:7px 10px;background:#333;border:1px solid #555;color:#fff;border-radius:4px}
+.wl-addbar .wl-btn{padding:7px 14px;border-radius:4px;border:1px solid #555;background:#2a2a2a;color:#ccc;cursor:pointer;font-size:.85rem}
+.wl-addbar .wl-btn:hover{background:#333;color:#fff}
+.wl-addbar .wl-btn.primary{background:#26a69a;border-color:#26a69a;color:#fff;font-weight:bold}
+.wl-addbar .wl-btn.primary:hover{background:#2bbbad}
+.wl-hint{color:#777;font-size:.75rem;margin-left:auto}
+/* V36：自選股表格 */
+.wl-table{width:100%;border-collapse:collapse;background:#000;font-size:.85rem;font-family:'Segoe UI',monospace}
+.wl-table th{background:#0b2a4a;color:#cfe3ff;padding:7px 8px;text-align:right;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:1px solid #234;position:sticky;top:0}
+.wl-table th:first-child,.wl-table th:nth-child(2){text-align:left}
+.wl-table th:hover{background:#12395f}
+.wl-table th .wl-arrow{color:#ffca28;margin-left:3px;font-size:.7rem}
+.wl-table td{padding:6px 8px;text-align:right;border-bottom:1px solid #1a1a1a;white-space:nowrap}
+.wl-table td:first-child,.wl-table td:nth-child(2){text-align:left}
+.wl-table tbody tr{cursor:pointer}
+.wl-table tbody tr:hover{background:#14243a}
+.wl-table tbody tr.dragging{opacity:.4}
+.wl-table tbody tr.drag-over{border-top:2px solid #26a69a}
+.wl-name-cell{color:#fff;font-weight:bold}
+.wl-code-cell{color:#8ab4f8;font-family:monospace}
+.wl-up{color:#ff4d4d}
+.wl-down{color:#00e676}
+.wl-flat{color:#bbb}
+.wl-num{color:#ddd}
+.wl-loading{color:#666;font-style:italic}
+.wl-drag{color:#555;cursor:grab;padding-right:4px}
+.wl-del{background:transparent;border:none;color:#666;cursor:pointer;padding:2px 6px;border-radius:3px}
+.wl-del:hover{color:#f44336;background:#f4433622}
 #chart-container,#trend-k-container,#trend-algo-container{width:100%;height:100%}
 /* V25：雲端同步 */
 .sync-btn{padding:8px 12px;border-radius:4px;border:1px solid #555;background:#2a2a2a;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:.85rem}
@@ -190,6 +247,9 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
     <input type="text" id="stock-symbol" value="2330">
     <span id="stock-name-display"></span>
     <button class="search-btn" onclick="fetchData()">查詢</button>
+    <button class="sync-btn" id="token-btn" onclick="openTokenModal()" title="設定 FinMind API Token（提高每小時查詢上限）">
+        <span class="sync-dot" id="token-dot"></span><span id="token-btn-label">API Token</span>
+    </button>
     <button class="sync-btn" id="sync-btn" onclick="openSyncModal()" title="設定跨裝置雲端同步">
         <span class="sync-dot" id="sync-dot"></span><span id="sync-btn-label">雲端同步</span>
     </button>
@@ -205,33 +265,21 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
 
 <div id="view-watchlist" class="content-area">
     <div class="watchlist-wrapper">
+        <div class="wl-addbar">
+            <label>新增自選：</label>
+            <input type="text" id="wl-add-input" placeholder="輸入代號 例 2330" onkeydown="if(event.key==='Enter'){event.preventDefault();addToWatchlistByInput();}">
+            <button class="wl-btn primary" onclick="addToWatchlistByInput()">＋ 加入</button>
+            <button class="wl-btn" onclick="refreshWatchlistQuotes(true)">↻ 更新報價</button>
+            <button class="wl-btn" onclick="resetWatchlistSort()">手動排序</button>
+            <span class="wl-hint" id="wl-hint"></span>
+        </div>
         <div id="watchlist-list"></div>
     </div>
 </div>
 
 <div id="view-chart" class="content-area active">
-    <div class="draw-toolbar" id="draw-toolbar">
-        <div class="draw-toolbar-header">
-            <button class="tb-mini-btn" id="toolbar-pin-btn" onclick="toggleToolbarPin()" title="釘選：固定收合/展開狀態">
-                <svg viewBox="0 0 24 24"><path d="M12 2 L12 10 M8 6 L16 6 M6 10 L18 10 L15 14 L15 20 L9 20 L9 14 Z" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
-            <button class="tb-mini-btn" id="toolbar-collapse-btn" onclick="toggleToolbarCollapse()" title="收合/展開工具列">
-                <svg class="tb-collapse-icon" viewBox="0 0 24 24"><path d="M15 5 L8 12 L15 19" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        </div>
-        <div class="draw-toolbar-body" id="draw-toolbar-body">
-            <button class="draw-tool-btn active" id="tool-cursor" onclick="setTool(null)" title="游標 (選取/拖曳/平移)">
-                <svg viewBox="0 0 24 24"><path d="M5 3 L11 21 L13.5 13.5 L21 11 Z"/></svg></button>
-            <button class="draw-tool-btn" id="tool-hline" onclick="setTool('hline')" title="水平線">
-                <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><circle cx="12" cy="12" r="2.5"/></svg></button>
-            <button class="draw-tool-btn" id="tool-trend" onclick="setTool('trend')" title="趨勢線 (按住 Shift 可鎖定水平)">
-                <svg viewBox="0 0 24 24"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="4" r="2"/></svg></button>
-            <button class="draw-tool-btn" id="tool-rect" onclick="setTool('rect')" title="矩形框">
-                <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12"/></svg></button>
-            <button class="draw-tool-btn" id="tool-fib" onclick="setTool('fib')" title="費波那契回撤">
-                <svg viewBox="0 0 24 24"><line x1="3" y1="5" x2="21" y2="5"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="3" y1="20" x2="21" y2="20"/></svg></button>
-            <button class="draw-tool-btn danger" onclick="clearDrawings()" title="清除全部圖形">
-                <svg viewBox="0 0 24 24"><path d="M5 7 H19 M9 7 V4 H15 V7 M7 7 L8 20 H16 L17 7"/></svg></button>
-        </div>
-    </div>
+  <div class="chart-main-area">
+    <div class="draw-toolbar" id="main-toolbar"></div>
 
     <!-- 週期快速切換 + 均線列（V29：改用 flex 排列，避免元件變寬時互相遮擋） -->
     <div class="top-toolbar-row">
@@ -275,12 +323,31 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
     </div>
 
     <div class="ohlc-info" id="ohlc-info"></div>
+    <button class="cs-toggle" onclick="toggleChartSidebar()" title="顯示/隱藏自選股欄">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="15" y1="4" x2="15" y2="20"/></svg></button>
     <button class="screenshot-btn" onclick="screenshotChart()" title="截圖並儲存">
         <svg viewBox="0 0 24 24"><path d="M4 8 L7 8 L8.5 5.5 L15.5 5.5 L17 8 L20 8 A1 1 0 0 1 21 9 L21 18 A1 1 0 0 1 20 19 L4 19 A1 1 0 0 1 3 18 L3 9 A1 1 0 0 1 4 8 Z" stroke-linejoin="round"/><circle cx="12" cy="13.5" r="3.5"/></svg></button>
     <div id="chart-container"></div>
-    <canvas id="draw-canvas"></canvas>
+    <canvas class="draw-canvas" id="main-canvas"></canvas>
     <button class="autoscale-btn" onclick="autoScalePrice()" title="自動調整K棒比例">A</button>
     <div id="msg-chart" class="status-msg">請點擊查詢</div>
+  </div>
+  <div class="chart-sidebar" id="chart-sidebar">
+      <div class="cs-header">
+          <span>⭐ 自選股</span>
+          <span class="cs-add">
+              <input type="text" id="cs-add-input" placeholder="代號" onkeydown="if(event.key==='Enter'){event.preventDefault();addToWatchlistFromSidebar();}">
+              <button onclick="addToWatchlistFromSidebar()">＋</button>
+          </span>
+      </div>
+      <div class="cs-colhead">
+          <span class="cs-code">代號</span>
+          <span class="cs-name">商品</span>
+          <span class="cs-price">收盤價</span>
+          <span class="cs-pct">漲幅%</span>
+      </div>
+      <div class="cs-list" id="chart-watchlist"></div>
+  </div>
 </div>
 
 <div id="view-table" class="content-area">
@@ -329,6 +396,8 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
                 <div class="ohlc-info compare-ohlc" id="compare-ohlc-1"></div>
             </div>
             <div id="compare-chart-1" style="width:100%;height:100%"></div>
+            <canvas class="draw-canvas" id="cmp1-canvas"></canvas>
+            <div class="draw-toolbar" id="cmp1-toolbar"></div>
             <div id="msg-compare-1" class="status-msg">請輸入標的並查詢</div>
         </div>
     </div>
@@ -345,6 +414,8 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
                 <div class="ohlc-info compare-ohlc" id="compare-ohlc-2"></div>
             </div>
             <div id="compare-chart-2" style="width:100%;height:100%"></div>
+            <canvas class="draw-canvas" id="cmp2-canvas"></canvas>
+            <div class="draw-toolbar" id="cmp2-toolbar"></div>
             <div id="msg-compare-2" class="status-msg">請輸入標的並查詢</div>
         </div>
     </div>
@@ -378,6 +449,29 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeSettings()">取消</button>
             <button class="btn-save" onclick="saveSettings()">儲存設定</button>
+        </div>
+    </div>
+</div>
+
+<!-- V44：FinMind API Token 設定視窗 -->
+<div id="token-modal" class="modal-overlay">
+    <div class="modal-content" style="width:460px">
+        <div class="modal-title">🔑 FinMind API Token</div>
+        <div class="sync-modal-body">
+            <div class="sync-status-line" id="token-status-line">尚未設定</div>
+            <textarea id="token-input" style="height:80px" placeholder="貼上 FinMind 網站「使用者資訊」頁面的 api token 金鑰（eyJ0eXAi... 開頭那一長串）"></textarea>
+            <div class="sync-help">
+                未登入時每小時只能查 300 次，很容易在連續操作時被擋下來（就是「載入失敗」的主因）。<br>
+                到 <a href="https://finmindtrade.com/" target="_blank" rel="noopener">FinMind 官網</a> 免費註冊並驗證信箱後，可取得 token，上限提高到 600 次／小時。<br>
+                Token 只會存在這台電腦的瀏覽器裡，<b>不會</b>上傳到你的雲端同步資料庫。每台電腦要各自設定一次。
+            </div>
+            <div class="sync-modal-actions">
+                <button class="btn-cancel" onclick="clearFmToken()">清除</button>
+                <div style="display:flex;gap:8px">
+                    <button class="btn-cancel" onclick="closeTokenModal()">關閉</button>
+                    <button class="btn-save" onclick="saveFmToken()">儲存並測試</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -481,6 +575,92 @@ function updateSyncStatus(connected) {
     document.getElementById('sync-btn').classList.toggle('connected', connected);
     document.getElementById('sync-btn-label').textContent = connected ? '雲端已連線' : '雲端同步';
 }
+/* ══════════ V42：FinMind 請求排隊器 ══════════
+   V36 以後自選股/側欄會一次幫多檔股票抓報價，加上主圖本身的3個請求，
+   一開頁就可能瞬間送出十幾個 request，容易被資料來源限流而出現「Failed to fetch」。
+   這裡統一走一個排隊器：最多同時 2 個請求、彼此間隔一小段時間，
+   失敗自動重試一次（網路瞬斷或限流常常重試就會過）。 */
+const FM_MAX_CONCURRENT = 2, FM_MIN_GAP_MS = 120, FM_RETRY = 1;
+let fmActive = 0, fmQueue = [], fmLastStart = 0;
+/* V44：FinMind API Token。未登入 300 次/小時、帶 token 600 次/小時。
+   依官方說明以「token 參數」的方式附在網址上（不用自訂 HTTP 標頭，避免瀏覽器跨網域預檢問題）。
+   Token 屬於個人憑證，只存在本機瀏覽器，不會寫進雲端同步。 */
+let fmToken = '';
+try { fmToken = localStorage.getItem('wr_fmToken') || ''; } catch (e) {}
+function fmUrlWithToken(url) {
+    if (!fmToken) return url;
+    return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(fmToken);
+}
+function fmFetch(url) {
+    return new Promise((resolve, reject) => {
+        fmQueue.push({ url, resolve, reject, tries: 0 });
+        fmPump();
+    });
+}
+function fmPump() {
+    if (fmActive >= FM_MAX_CONCURRENT || !fmQueue.length) return;
+    const gap = Date.now() - fmLastStart;
+    if (gap < FM_MIN_GAP_MS) { setTimeout(fmPump, FM_MIN_GAP_MS - gap); return; }
+    const job = fmQueue.shift();
+    fmActive++; fmLastStart = Date.now();
+    fetch(job.noToken ? job.url : fmUrlWithToken(job.url))
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(json => job.resolve(json))
+        .catch(err => {
+            if (job.tries < FM_RETRY) {
+                job.tries++;
+                setTimeout(() => { fmQueue.unshift(job); fmPump(); }, 900);   // 稍等一下再重試
+            } else if (fmToken && !job.noToken) {
+                // V44：萬一 token 格式或傳法有問題，自動退回「不帶 token」再試一次，
+                // 確保設定 token 之後最壞情況也只是回到原本的狀態，不會整個查不到資料
+                job.noToken = true; job.tries = 0;
+                setTimeout(() => { fmQueue.unshift(job); fmPump(); }, 300);
+            } else job.reject(err);
+        })
+        .finally(() => { fmActive--; setTimeout(fmPump, 0); });
+}
+
+function updateTokenStatus() {
+    const on = !!fmToken;
+    document.getElementById('token-btn').classList.toggle('connected', on);
+    document.getElementById('token-btn-label').textContent = on ? 'Token 已設定' : 'API Token';
+}
+function openTokenModal() {
+    const line = document.getElementById('token-status-line');
+    line.textContent = fmToken ? '✅ 已設定（上限 600 次/小時）' : '尚未設定（目前為未登入的 300 次/小時）';
+    document.getElementById('token-input').value = '';
+    document.getElementById('token-modal').style.display = 'flex';
+}
+function closeTokenModal() { document.getElementById('token-modal').style.display = 'none'; }
+async function saveFmToken() {
+    const val = document.getElementById('token-input').value.trim();
+    if (!val) { alert('請先貼上 token'); return; }
+    const line = document.getElementById('token-status-line');
+    line.textContent = '測試中...';
+    const prev = fmToken;
+    fmToken = val;
+    try {
+        // 直接打一次真實查詢驗證，成功才寫入，避免存了無效的 token 卻不自知
+        const test = await fetch(fmUrlWithToken('https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo&data_id=2330'));
+        if (!test.ok) throw new Error('HTTP ' + test.status);
+        const json = await test.json();
+        if (!json.data || !json.data.length) throw new Error(json.msg || '回傳空資料');
+        try { localStorage.setItem('wr_fmToken', val); } catch (e) {}
+        updateTokenStatus();
+        line.textContent = '✅ 測試成功，已啟用（上限 600 次/小時）';
+        setTimeout(closeTokenModal, 1200);
+    } catch (err) {
+        fmToken = prev;   // 還原，不讓無效的 token 影響原本可用的狀態
+        line.textContent = '❌ 測試失敗：' + err.message + '（token 未儲存）';
+    }
+}
+function clearFmToken() {
+    fmToken = '';
+    try { localStorage.removeItem('wr_fmToken'); } catch (e) {}
+    updateTokenStatus();
+    document.getElementById('token-status-line').textContent = '已清除，回到未登入的 300 次/小時';
+}
+
 function initFirebaseSync() {
     const cfg = loadFirebaseConfig();
     if (!cfg) { updateSyncStatus(false); return; }
@@ -489,28 +669,83 @@ function initFirebaseSync() {
         fbRoot = firebase.database().ref('wr_sync');
         updateSyncStatus(true);
         pullFromCloud(false);
+        // V42：改用即時監聽，其他裝置一存檔這邊就自動套用，不需要手動按「重新整理套用」
+        fbRoot.on('value', snap => { try { applyCloudData(snap.val()); } catch (e) { console.error('套用雲端資料失敗:', e); } });
     } catch (err) {
         console.error('Firebase 初始化失敗:', err);
         updateSyncStatus(false);
     }
 }
-/* 抓一次雲端最新資料寫回 localStorage；若跟本機不同就跳出頂端提示條（silent=true 時不跳提示，用於背景檢查） */
 async function pullFromCloud(silent) {
     if (!fbRoot) return;
     try {
         const snap = await fbRoot.once('value');
-        const data = snap.val();
-        if (!data) return;
-        let changed = false;
-        Object.keys(data).forEach(k => {
-            const newVal = JSON.stringify(data[k]);
-            if (localStorage.getItem(k) !== newVal) changed = true;
-            try { localStorage.setItem(k, newVal); } catch (e) {}
-        });
-        if (changed && !silent) document.getElementById('sync-banner').style.display = 'flex';
+        applyCloudData(snap.val());
     } catch (err) {
         console.error('雲端讀取失敗:', err);
     }
+}
+
+/* V42：把雲端資料直接套用到畫面上（取代原本要手動按「重新整理套用」的做法）。
+   只處理「真的有變動」的鍵，所以自己剛寫上去的資料回彈時不會重複套用。 */
+let pendingCloudApply = false;
+/* V45：這些鍵屬於「本機快取」，即使雲端還留著舊版上傳的資料也一律忽略，避免把新報價蓋成舊的 */
+const CLOUD_IGNORE_KEYS = ['wr_wlQuotes'];
+function applyCloudData(data) {
+    if (!data) return false;
+    const changed = [];
+    Object.keys(data).forEach(k => {
+        if (CLOUD_IGNORE_KEYS.indexOf(k) >= 0) return;
+        const nv = JSON.stringify(data[k]);
+        if (localStorage.getItem(k) !== nv) {
+            try { localStorage.setItem(k, nv); changed.push(k); } catch (e) {}
+        }
+    });
+    if (!changed.length) return false;
+    // 使用者正在畫圖或拖曳時先不動畫面，等他放手再套用，免得手上的動作被打斷
+    const busy = activeDrawLayer && (activeDrawLayer.pendingPoint || activeDrawLayer.dragInfo);
+    if (busy) { pendingCloudApply = true; return false; }
+    liveApplyCloudKeys(changed);
+    return true;
+}
+function liveApplyCloudKeys(keys) {
+    const has = prefix => keys.some(k => k.indexOf(prefix) === 0);
+    if (has('wr_watchlist')) {
+        watchlist = LS.get('wr_watchlist', watchlist);
+        renderWatchlistTab(); renderChartSidebar();
+        refreshWatchlistQuotes(false);   // V45：清單有變就補抓新股票的報價
+    }
+    if (has('wr_maShared') || has('wr_maVisible') || has('wr_maSyncTF')) {
+        const shared = LS.get('wr_maShared', null);
+        if (Array.isArray(shared) && shared.length === maConfig.length) {
+            shared.forEach((m, i) => {
+                if (m.period) maConfig[i].period = m.period;
+                if (m.color)  maConfig[i].color  = m.color;
+                if (m.width)  maConfig[i].width  = m.width;
+            });
+        }
+        maSyncTF = LS.get('wr_maSyncTF', maSyncTF);
+        maHiddenSnapshot = LS.get('wr_maHiddenSnapshot', null);   // V46
+        loadMAVisible();
+        renderMaControls();
+        if (displayData.length) applyPriceData(false);
+    }
+    if (has('wr_vwmaConfig')) {
+        const v = LS.get('wr_vwmaConfig', null);
+        if (v) { Object.assign(vwmaConfig, v); renderMaControls(); if (displayData.length) applyPriceData(false); }
+    }
+    if (has('wr_toolDefaults')) toolDefaults = Object.assign(toolDefaults, LS.get('wr_toolDefaults', {}));
+    if (has('wr_draw_') && drawLayers.main && currentSymbol) drawLayers.main.load(currentSymbol);
+    if (has('wr_drawcmp_')) [1, 2].forEach(n => { const L = drawLayers['cmp' + n]; if (L && L.symbol) L.load(L.symbol); });
+    showSyncToast();
+}
+function showSyncToast() {
+    const el = document.getElementById('sync-banner');
+    if (!el) return;
+    el.innerHTML = '<span>☁ 已自動套用其他裝置的更新</span>';
+    el.style.display = 'flex';
+    clearTimeout(showSyncToast._t);
+    showSyncToast._t = setTimeout(() => { el.style.display = 'none'; }, 2500);
 }
 /* 把本機目前所有 wr_ 開頭的資料（不含雲端設定本身）整批上傳，用於第一次設定同步時「種」資料到雲端 */
 function pushAllToCloud() {
@@ -657,6 +892,7 @@ function toggleVwma() {
     const checked = document.getElementById('vwma-check').checked;
     vwmaConfig.visible = checked;
     vwmaConfig.series.applyOptions({ visible: checked });
+    dropHiddenSnapshotIfNeeded();   // V46
     persistVwma();
 }
 
@@ -667,7 +903,7 @@ function renderMaControls() {
         html += `<label class="ma-item" style="color:${cfg.color}"><input type="checkbox" id="ma-check-${idx}" ${cfg.visible?'checked':''} onchange="toggleMA(${idx})"><span id="ma-label-${idx}">MA${cfg.period}</span></label>`;
     });
     html += `<label class="ma-item" style="color:${vwmaConfig.color}"><input type="checkbox" id="vwma-check" ${vwmaConfig.visible?'checked':''} onchange="toggleVwma()"><span>VWMA</span></label>`;
-    html += `<button class="ma-clear-btn" onclick="clearAllMA()">全消</button>`;
+    html += `<button class="ma-eye-btn${maHiddenSnapshot ? ' hidden-state' : ''}" id="ma-eye-btn" onclick="toggleAllIndicators()" title="${maHiddenSnapshot ? '顯示指標（回復原本的勾選）' : '暫時隱藏所有指標'}">${maEyeIconSvg()}</button>`;
     html += `<button class="ma-sync-btn" id="ma-sync-btn" onclick="toggleMASync()" title="開啟：日/週/月共用同一組勾選狀態；關閉：各週期可各自勾選不同均線">${maSyncTF ? '週期同步:開' : '週期同步:關'}</button>`;
     html += `<button class="settings-btn" onclick="openSettings()" title="設定參數"><svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></button>`;
     legendContainer.innerHTML = html;
@@ -822,6 +1058,20 @@ function normalizeChartTime(t) {
     return t;
 }
 
+/* V35 修正：漲跌幅的基準點原本用「當根K棒的開盤價」算 (收-開)/開，那是「當日振幅」不是漲跌幅。
+   台股與 TradingView 的慣例都是跟「前一根K棒的收盤價」比：(收 - 前收) / 前收。
+   例如 3704 在 2026-07-13 開48.00收49.85、前一日收45.35，
+   舊算法得到 +3.85%（其實是開盤到收盤的變化），正確答案是 +9.92%。
+   週線/月線也適用：基準就是上一週/上一月的收盤價。 */
+function computeChange(dataArr, bar) {
+    const idx = dataArr.findIndex(d => d.time === bar.time);
+    const prev = idx > 0 ? dataArr[idx - 1] : null;
+    const base = (prev && prev.close) ? prev.close : bar.open;   // 沒有前一根時（資料第一天）退回用開盤價當基準
+    const change = bar.close - base;
+    const pct = base ? (change / base) * 100 : 0;
+    return { change, pct, up: change >= 0 };
+}
+
 /* V29：強弱對比視窗的漲跌幅資訊列 — 傳入日期字串則顯示該天，傳 null 則顯示最新一根K棒 */
 function updateCompareOhlcInfo(n, timeStr) {
     const el = document.getElementById(`compare-ohlc-${n}`);
@@ -829,24 +1079,26 @@ function updateCompareOhlcInfo(n, timeStr) {
     let bar = timeStr ? (compareData[n].find(d => d.time === timeStr) || null) : null;
     if (!bar) bar = compareData[n].length ? compareData[n][compareData[n].length - 1] : null;
     if (!bar) { el.innerHTML = ''; return; }
-    const up = bar.close >= bar.open;
+    const ch = computeChange(compareData[n], bar);   // V35
+    const up = ch.up;
     const color = up ? '#ef232a' : '#26a69a';
-    const pct = bar.open ? (((bar.close - bar.open) / bar.open) * 100).toFixed(2) : '0.00';
+    const pct = ch.pct.toFixed(2);
     el.innerHTML = `<span><span class="oi-label">日期</span><span class="oi-val">${bar.time}</span></span>` +
         `<span style="color:${color}"><span class="oi-label" style="color:${color}">開</span><span class="oi-val">${bar.open.toFixed(2)}</span></span>` +
         `<span style="color:${color}"><span class="oi-label" style="color:${color}">高</span><span class="oi-val">${bar.high.toFixed(2)}</span></span>` +
         `<span style="color:${color}"><span class="oi-label" style="color:${color}">低</span><span class="oi-val">${bar.low.toFixed(2)}</span></span>` +
         `<span style="color:${color}"><span class="oi-label" style="color:${color}">收</span><span class="oi-val">${bar.close.toFixed(2)}</span></span>` +
-        `<span style="color:${color}">${up?'+':''}${pct}%</span>`;
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">幅</span><span class="oi-val">${up?'+':''}${pct}%</span></span>`;
 }
 
 function updateOhlcInfo(bar) {
     const el = document.getElementById('ohlc-info');
     if (!el) return;
     if (!bar) { el.innerHTML = ''; return; }
-    const up = bar.close >= bar.open;
+    const ch = computeChange(displayData, bar);   // V35
+    const up = ch.up;
     const color = up ? '#ef232a' : '#26a69a';
-    const pct = bar.open ? (((bar.close - bar.open) / bar.open) * 100).toFixed(2) : '0.00';
+    const pct = ch.pct.toFixed(2);
     const volTxt = Number.isFinite(bar.volume) ? Math.round(bar.volume / 1000).toLocaleString() + ' 張' : '—';
     const starOn = isInWatchlist(currentSymbol);   // V27
     el.innerHTML = `<button class="watchlist-star ${starOn?'active':''}" onclick="toggleWatchlist(event)" title="${starOn?'從自選股移除':'加入自選股'}">${starOn?'★':'☆'}</button>` +
@@ -856,12 +1108,23 @@ function updateOhlcInfo(bar) {
         `<span style="color:${color}"><span class="oi-label" style="color:${color}">高</span><span class="oi-val">${bar.high.toFixed(2)}</span></span>` +
         `<span style="color:${color}"><span class="oi-label" style="color:${color}">低</span><span class="oi-val">${bar.low.toFixed(2)}</span></span>` +
         `<span style="color:${color}"><span class="oi-label" style="color:${color}">收</span><span class="oi-val">${bar.close.toFixed(2)}</span></span>` +
-        `<span style="color:${color}">${up?'+':''}${pct}%</span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">幅</span><span class="oi-val">${up?'+':''}${pct}%</span></span>` +
         `<span><span class="oi-label">量</span><span class="oi-val">${volTxt}</span></span>`;
 }
 
 /* ══════════ V27：自選股 ══════════ */
-let watchlist = LS.get('wr_watchlist', []);   // [{symbol, name}, ...]
+let watchlist = LS.get('wr_watchlist', []);   // [{symbol, name}, ...]，陣列順序即使用者的手動排序
+/* V45：報價是「行情快取」不是「使用者設定」，所以只存在本機、不參與雲端同步。
+   之前用 LS.set 會把它上傳，結果另一台裝置若拿著舊報價，就會透過同步把這台剛抓到的新報價蓋回舊的
+   —— 這正是側欄顯示昨天的價格、自選股頁面卻是正確價格的原因。 */
+let wlQuotes = {};
+try { wlQuotes = JSON.parse(localStorage.getItem('wr_wlQuotes') || '{}'); } catch (e) { wlQuotes = {}; }
+function persistQuotesLocal() {
+    try { localStorage.setItem('wr_wlQuotes', JSON.stringify(wlQuotes)); } catch (e) {}
+}
+let wlSortField = null, wlSortAsc = false;   // null = 依使用者手動排序
+let wlLoading = false;
+
 function isInWatchlist(symbol) { return watchlist.some(w => w.symbol === symbol); }
 function toggleWatchlist(e) {
     if (e) e.stopPropagation();
@@ -871,22 +1134,272 @@ function toggleWatchlist(e) {
     else watchlist.push({ symbol: currentSymbol, name: (nameDisplay.textContent || currentSymbol).trim() });
     LS.set('wr_watchlist', watchlist);
     if (displayData.length) updateOhlcInfo(displayData[displayData.length - 1]);
+    renderWatchlistTab(); renderChartSidebar();   // V39
+}
+
+/* V36：從自選股頁面直接新增 */
+async function addToWatchlistByInput() {
+    const input = document.getElementById('wl-add-input');
+    const symbol = input.value.trim();
+    if (!symbol) return;
+    if (isInWatchlist(symbol)) { alert(`「${symbol}」已經在自選股清單裡了`); return; }
+    setWlHint('查詢中...');
+    try {
+        const json = await fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo&data_id=${symbol}`);
+        const name = (json.data && json.data.length) ? json.data[0].stock_name : '';
+        if (!name) { alert(`查無「${symbol}」這個代號，請確認後再試`); setWlHint(''); return; }
+        watchlist.push({ symbol, name });
+        LS.set('wr_watchlist', watchlist);
+        input.value = '';
+        renderWatchlistTab(); renderChartSidebar();   // V39
+        await refreshWatchlistQuotes(false);
+    } catch (err) {
+        console.error(err); alert('新增失敗，請稍後再試'); setWlHint('');
+    }
+}
+function setWlHint(txt) { const el = document.getElementById('wl-hint'); if (el) el.textContent = txt; }
+
+/* V36：抓一檔股票的收盤價/漲幅/成交量。股本改抓資產負債表，因為它很少變動所以另外長期快取。 */
+async function fetchOneQuote(symbol) {
+    const start = new Date(); start.setDate(start.getDate() - 30);
+    const startDate = start.toISOString().split('T')[0];
+    const json = await fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${symbol}&start_date=${startDate}`);
+    const rows = (json.data || [])
+        .filter(r => Number.isFinite(r.close) && r.close > 0)   // 官方文件提醒：無公告價格的日子 close 會是 0，要濾掉
+        .sort((a, b) => (a.date < b.date ? -1 : 1));
+    if (!rows.length) return null;
+    const last = rows[rows.length - 1], prev = rows.length > 1 ? rows[rows.length - 2] : null;
+    const base = prev ? prev.close : last.open;
+    const q = {
+        close: last.close,
+        pct: base ? ((last.close - base) / base) * 100 : 0,
+        volume: last.Trading_Volume || 0,
+        date: last.date,
+        capital: await fetchCapital(symbol),
+        ts: Date.now()
+    };
+    return q;
+}
+/* 股本（單位：億元）。資產負債表回傳 {date, type, value, origin_name}。
+   V37 修正：原本用關鍵字直接抓第一筆符合的列，結果會誤抓到「每股面額(10元)」之類的小數字，
+   台積電因此顯示成 0.00。改法：把最新一期所有跟「股本」有關的列都找出來，取其中「數值最大」的那一列
+   —— 真正的普通股股本一定遠大於面額或零星科目，這樣就不必依賴某個特定欄位名稱是否正確。
+   另外加上單位判斷：財報數字有時是「元」有時是「仟元」，用數量級推回億元。 */
+async function fetchCapital(symbol) {
+    const cacheKey = 'wr_cap2_' + symbol;   // V37：換快取名稱，讓舊的錯誤數值(0.00)自動失效重抓
+    const cached = LS.get(cacheKey, null);
+    if (cached && (Date.now() - cached.ts) < 90 * 86400000) return cached.v;
+    try {
+        const start = new Date(); start.setFullYear(start.getFullYear() - 2);
+        const json = await fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockBalanceSheet&data_id=${symbol}&start_date=${start.toISOString().split('T')[0]}`);
+        const all = (json.data || []).filter(r => Number.isFinite(r.value) && r.value > 0);
+        const cand = all.filter(r => {
+            const n = (r.origin_name || '') + ' ' + (r.type || '');
+            if (/面額|每股|ParValue|PerShare/i.test(n)) return false;   // 排除面額/每股類科目
+            return /股本|CommonStock|OrdinaryShare|ShareCapital/i.test(n);
+        });
+        let v = null;
+        if (cand.length) {
+            const latest = cand.reduce((m, r) => (r.date > m ? r.date : m), cand[0].date);
+            const sameDay = cand.filter(r => r.date === latest);
+            // 財報數值單位為「元」，換算成億元。（不做仟元/元的自動猜測：兩者數量級會重疊，
+            // 猜錯反而會製造新的錯誤。若實際顯示的數字剛好差 1000 倍，改這一行的除數即可。）
+            v = Math.max(...sameDay.map(r => r.value)) / 1e8;
+        }
+        LS.set(cacheKey, { v, ts: Date.now() });
+        return v;
+    } catch (e) { return null; }
+}
+
+/* 分批抓，避免一次打太多請求被 FinMind 擋掉 */
+async function refreshWatchlistQuotes(force) {
+    if (wlLoading || !watchlist.length) return;
+    wlLoading = true;
+    const targets = watchlist.filter(w => force || !wlQuotes[w.symbol] || (Date.now() - (wlQuotes[w.symbol].ts || 0)) > 10 * 60000);
+    if (!targets.length) { wlLoading = false; setWlHint(''); return; }
+    let done = 0;
+    setWlHint(`更新中 0/${targets.length}`);
+    const BATCH = 3;
+    for (let i = 0; i < targets.length; i += BATCH) {
+        await Promise.all(targets.slice(i, i + BATCH).map(async w => {
+            try {
+                const q = await fetchOneQuote(w.symbol);
+                if (q) { q.name = w.name; wlQuotes[w.symbol] = q; }
+            } catch (e) { console.error('報價取得失敗', w.symbol, e); }
+            done++; setWlHint(`更新中 ${done}/${targets.length}`);
+        }));
+        renderWatchlistTab(); renderChartSidebar();   // V45：側欄也要逐批更新，不要等全部跑完
+    }
+    persistQuotesLocal();   // V45：只寫本機，不上雲端
+    renderChartSidebar();   // V39：報價更新後側欄跟著更新
+    wlLoading = false;
+    setWlHint(`更新於 ${new Date().toLocaleTimeString('zh-TW', { hour12: false })}`);
     renderWatchlistTab();
 }
+
+function wlSortBy(field) {
+    if (wlSortField === field) wlSortAsc = !wlSortAsc;
+    else { wlSortField = field; wlSortAsc = false; }   // 第一次點擊預設由大到小
+    renderWatchlistTab();
+}
+function resetWatchlistSort() { wlSortField = null; renderWatchlistTab(); }
+
+function wlSortedRows() {
+    const rows = watchlist.map(w => {
+        const q = wlQuotes[w.symbol] || {};
+        return { symbol: w.symbol, name: w.name, close: q.close, pct: q.pct, volume: q.volume, capital: q.capital };
+    });
+    if (!wlSortField) return rows;   // 手動排序：直接照清單順序
+    const dir = wlSortAsc ? 1 : -1;
+    return rows.slice().sort((a, b) => {
+        let x = a[wlSortField], y = b[wlSortField];
+        if (wlSortField === 'name' || wlSortField === 'symbol') {
+            return String(x ?? '').localeCompare(String(y ?? ''), 'zh-Hant') * dir;
+        }
+        // 數字欄位：沒有資料的一律排最後，不管升冪降冪
+        const xn = Number.isFinite(x), yn = Number.isFinite(y);
+        if (!xn && !yn) return 0;
+        if (!xn) return 1;
+        if (!yn) return -1;
+        return (x - y) * dir;
+    });
+}
+
 function renderWatchlistTab() {
     const el = document.getElementById('watchlist-list');
     if (!el) return;
     if (!watchlist.length) {
-        el.innerHTML = `<div class="watchlist-empty">尚未加入任何自選股<br>切換到「K 線圖」頁籤，點股票名稱旁的 ☆ 即可加入</div>`;
+        el.innerHTML = `<div class="watchlist-empty">尚未加入任何自選股<br>可用上方欄位輸入代號新增，或到「K 線圖」頁籤點股票名稱旁的 ☆</div>`;
         return;
     }
-    el.innerHTML = watchlist.map(w => `
-        <div class="watchlist-row" onclick="selectWatchlistStock('${w.symbol}')">
-            <span class="wl-symbol">${w.symbol}</span>
-            <span class="wl-name">${w.name}</span>
-            <button class="wl-remove" onclick="removeFromWatchlist(event,'${w.symbol}')" title="移除">✕</button>
-        </div>`).join('');
+    const cols = [
+        { f: 'symbol',  t: '代號' },
+        { f: 'name',    t: '商品' },
+        { f: 'close',   t: '收盤價' },
+        { f: 'pct',     t: '漲幅%' },
+        { f: 'volume',  t: '成交量' },
+        { f: 'capital', t: '股本(億)' }
+    ];
+    const manual = wlSortField === null;
+    let html = '<table class="wl-table"><thead><tr>';
+    cols.forEach(c => {
+        const arrow = wlSortField === c.f ? `<span class="wl-arrow">${wlSortAsc ? '▲' : '▼'}</span>` : '';
+        html += `<th onclick="wlSortBy('${c.f}')" title="點擊排序">${c.t}${arrow}</th>`;
+    });
+    html += '<th></th></tr></thead><tbody>';
+    wlSortedRows().forEach((r, viewIdx) => {
+        const realIdx = watchlist.findIndex(w => w.symbol === r.symbol);
+        const cls = !Number.isFinite(r.pct) ? 'wl-flat' : (r.pct > 0 ? 'wl-up' : (r.pct < 0 ? 'wl-down' : 'wl-flat'));
+        const arrow = !Number.isFinite(r.pct) ? '' : (r.pct > 0 ? '▲' : (r.pct < 0 ? '▼' : ''));
+        const fmt = (v, d) => Number.isFinite(v) ? v.toFixed(d) : '<span class="wl-loading">—</span>';
+        const vol = Number.isFinite(r.volume) ? Math.round(r.volume / 1000).toLocaleString() : '<span class="wl-loading">—</span>';
+        html += `<tr ${manual ? 'draggable="true"' : ''} data-idx="${realIdx}" onclick="selectWatchlistStock('${r.symbol}')"
+                    ondragstart="wlDragStart(event,${realIdx})" ondragover="wlDragOver(event)" ondragleave="wlDragLeave(event)" ondrop="wlDrop(event,${realIdx})" ondragend="wlDragEnd(event)">
+            <td class="wl-code-cell">${manual ? '<span class="wl-drag" title="拖曳可調整順序">⋮⋮</span>' : ''}${r.symbol}</td>
+            <td class="wl-name-cell">${r.name}</td>
+            <td class="wl-num">${fmt(r.close, 2)}</td>
+            <td class="${cls}">${arrow}${Number.isFinite(r.pct) ? (r.pct > 0 ? '+' : '') + r.pct.toFixed(2) : '<span class="wl-loading">—</span>'}</td>
+            <td class="wl-num">${vol}</td>
+            <td class="wl-num">${fmt(r.capital, 2)}</td>
+            <td><button class="wl-del" onclick="removeFromWatchlist(event,'${r.symbol}')" title="移除">✕</button></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    if (!manual) html += `<div style="color:#777;font-size:.75rem;margin-top:8px">目前依「${cols.find(c=>c.f===wlSortField).t}」排序中，按「手動排序」可切回自訂順序並啟用拖曳</div>`;
+    el.innerHTML = html;
 }
+
+/* V36：拖曳調整順序（只在手動排序模式下啟用） */
+let wlDragIdx = null;
+function wlDragStart(e, idx) { wlDragIdx = idx; e.currentTarget.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
+function wlDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function wlDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function wlDragEnd(e) { e.currentTarget.classList.remove('dragging'); document.querySelectorAll('.wl-table tr').forEach(t => t.classList.remove('drag-over')); }
+function wlDrop(e, targetIdx) {
+    e.preventDefault(); e.stopPropagation();
+    e.currentTarget.classList.remove('drag-over');
+    if (wlDragIdx === null || wlDragIdx === targetIdx) return;
+    const moved = watchlist.splice(wlDragIdx, 1)[0];
+    watchlist.splice(targetIdx, 0, moved);
+    wlDragIdx = null;
+    LS.set('wr_watchlist', watchlist);
+    renderWatchlistTab(); renderChartSidebar();   // V39
+}
+
+/* ══════════ V39：K線圖頁面右側自選股欄 ══════════ */
+let chartSidebarOpen = LS.get('wr_chartSidebar', true);
+function applyChartSidebarState() {
+    const sb = document.getElementById('chart-sidebar');
+    if (!sb) return;
+    sb.classList.toggle('collapsed', !chartSidebarOpen);
+    // 實際的寬度重算交給下面的 ResizeObserver 處理（見 observeChartResize）
+}
+/* V41 修正：原本收合/展開後是用 requestAnimationFrame 量一次容器寬度就重設圖表大小，
+   但側欄有 0.15 秒的展開動畫，那一瞬間量到的是「動畫進行到一半」的舊寬度，
+   圖表就被固定成錯誤的尺寸、蓋住右邊的自選股欄，看起來像側欄展不開。
+   改用 ResizeObserver：只要容器實際尺寸有變（動畫過程中會連續觸發、視窗縮放也算），
+   就把圖表和畫布同步到正確尺寸，不必再猜時間點。 */
+let chartResizeObserver = null;
+function observeChartResize() {
+    const c = document.getElementById('chart-container');
+    if (!c || typeof ResizeObserver === 'undefined') return;
+    if (chartResizeObserver) chartResizeObserver.disconnect();
+    chartResizeObserver = new ResizeObserver(() => {
+        if (!c.clientWidth || !c.clientHeight) return;
+        if (typeof mainChart !== 'undefined' && mainChart) mainChart.resize(c.clientWidth, c.clientHeight);
+        if (typeof drawLayers !== 'undefined' && drawLayers.main) drawLayers.main.resize();
+    });
+    chartResizeObserver.observe(c);
+}
+function toggleChartSidebar() {
+    chartSidebarOpen = !chartSidebarOpen;
+    LS.set('wr_chartSidebar', chartSidebarOpen);
+    applyChartSidebarState();
+}
+async function addToWatchlistFromSidebar() {
+    const input = document.getElementById('cs-add-input');
+    const symbol = input.value.trim();
+    if (!symbol) return;
+    if (isInWatchlist(symbol)) { alert(`「${symbol}」已經在自選股清單裡了`); return; }
+    try {
+        const json = await fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo&data_id=${symbol}`);
+        const name = (json.data && json.data.length) ? json.data[0].stock_name : '';
+        if (!name) { alert(`查無「${symbol}」這個代號`); return; }
+        watchlist.push({ symbol, name });
+        LS.set('wr_watchlist', watchlist);
+        input.value = '';
+        renderChartSidebar(); renderWatchlistTab();
+        refreshWatchlistQuotes(false);
+    } catch (err) { console.error(err); alert('新增失敗，請稍後再試'); }
+}
+function renderChartSidebar() {
+    const el = document.getElementById('chart-watchlist');
+    if (!el) return;
+    if (!watchlist.length) {
+        el.innerHTML = `<div class="cs-empty">尚未加入自選股<br>可在上方輸入代號新增</div>`;
+        return;
+    }
+    el.innerHTML = watchlist.map(w => {
+        const q = wlQuotes[w.symbol] || {};
+        const has = Number.isFinite(q.pct);
+        const cls = !has ? 'wl-flat' : (q.pct > 0 ? 'wl-up' : (q.pct < 0 ? 'wl-down' : 'wl-flat'));
+        const pct = has ? (q.pct > 0 ? '+' : '') + q.pct.toFixed(2) : '—';
+        const price = Number.isFinite(q.close) ? q.close.toFixed(2) : '—';
+        const cur = w.symbol === currentSymbol ? ' current' : '';
+        return `<div class="cs-row${cur}" onclick="selectFromSidebar('${w.symbol}')" title="${w.symbol} ${w.name}">
+            <span class="cs-code">${w.symbol}</span>
+            <span class="cs-name">${w.name}</span>
+            <span class="cs-price">${price}</span>
+            <span class="cs-pct ${cls}">${pct}</span>
+        </div>`;
+    }).join('');
+}
+/* 點側欄的股票：直接在目前這個頁籤換股，不跳頁 */
+function selectFromSidebar(symbol) {
+    symbolInput.value = symbol;
+    fetchData();
+}
+
 function selectWatchlistStock(symbol) {
     // V27：點自選股 → 帶入代號並查詢，所有頁籤（K線圖/三大法人/趨勢透視）都會一起同步這檔股票
     symbolInput.value = symbol;
@@ -897,7 +1410,7 @@ function removeFromWatchlist(e, symbol) {
     e.stopPropagation();
     watchlist = watchlist.filter(w => w.symbol !== symbol);
     LS.set('wr_watchlist', watchlist);
-    renderWatchlistTab();
+    renderWatchlistTab(); renderChartSidebar();   // V39
     if (symbol === currentSymbol && displayData.length) updateOhlcInfo(displayData[displayData.length - 1]);
 }
 
@@ -910,8 +1423,9 @@ function screenshotChart() {
         composite.height = chartCanvas.height;
         const cctx = composite.getContext('2d');
         cctx.drawImage(chartCanvas, 0, 0);
-        if (drawCanvas.width > 0 && drawCanvas.height > 0) {
-            cctx.drawImage(drawCanvas, 0, 0, drawCanvas.width, drawCanvas.height, 0, 0, composite.width, composite.height);
+        const mainCanvas = drawLayers.main.canvas;
+        if (mainCanvas.width > 0 && mainCanvas.height > 0) {
+            cctx.drawImage(mainCanvas, 0, 0, mainCanvas.width, mainCanvas.height, 0, 0, composite.width, composite.height);
         }
         const a = document.createElement('a');
         const label = (nameDisplay.textContent || currentSymbol || 'chart').trim().replace(/[\\/:*?"<>|]/g, '_');
@@ -971,8 +1485,59 @@ function toggleMA(idx) {
     const checked = document.getElementById(`ma-check-${idx}`).checked;
     maConfig[idx].visible = checked;
     maConfig[idx].series.applyOptions({ visible: checked });
+    dropHiddenSnapshotIfNeeded();   // V46
     persistMAVisible();   // V24：依目前「是否同步週期」寫入對應的勾選記憶
 }
+/* V46：仿 TradingView 的「眼睛」按鈕 —— 一鍵隱藏全部指標，再按一次回復原本的勾選狀態。
+   跟舊版的「全消」不同：全消是把勾選清掉（回不去），這裡是先把目前狀態拍快照存起來，
+   隱藏時只是暫時關掉顯示，再按一次就照原樣還原。 */
+let maHiddenSnapshot = LS.get('wr_maHiddenSnapshot', null);   // null = 目前是顯示狀態
+function maEyeIconSvg() {
+    return maHiddenSnapshot
+        ? `<svg viewBox="0 0 24 24"><path d="M3 3 L21 21" stroke-linecap="round"/><path d="M10.6 6.2A9.8 9.8 0 0 1 12 6c5 0 9 4.5 10 6a15 15 0 0 1-3.2 3.6M6.5 8.2C4.6 9.4 3.3 11 2 12c1 1.5 5 6 10 6a9.6 9.6 0 0 0 3.6-.7" stroke-linecap="round"/></svg>`
+        : `<svg viewBox="0 0 24 24"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>`;
+}
+function refreshEyeButton() {
+    const b = document.getElementById('ma-eye-btn');
+    if (!b) return;
+    b.innerHTML = maEyeIconSvg();
+    b.classList.toggle('hidden-state', !!maHiddenSnapshot);
+    b.title = maHiddenSnapshot ? '顯示指標（回復原本的勾選）' : '暫時隱藏所有指標';
+}
+function applyIndicatorVisibility() {
+    maConfig.forEach((cfg, idx) => {
+        if (cfg.series) cfg.series.applyOptions({ visible: cfg.visible });
+        const cb = document.getElementById(`ma-check-${idx}`);
+        if (cb) cb.checked = cfg.visible;
+    });
+    if (vwmaConfig.series) vwmaConfig.series.applyOptions({ visible: vwmaConfig.visible });
+    const vcb = document.getElementById('vwma-check');
+    if (vcb) vcb.checked = vwmaConfig.visible;
+}
+function toggleAllIndicators() {
+    if (maHiddenSnapshot) {
+        const snap = maHiddenSnapshot;
+        maConfig.forEach((cfg, i) => { cfg.visible = !!(snap.ma && snap.ma[i]); });
+        vwmaConfig.visible = !!snap.vwma;
+        maHiddenSnapshot = null;
+    } else {
+        maHiddenSnapshot = { ma: maConfig.map(c => c.visible), vwma: vwmaConfig.visible };
+        maConfig.forEach(c => { c.visible = false; });
+        vwmaConfig.visible = false;
+    }
+    LS.set('wr_maHiddenSnapshot', maHiddenSnapshot);
+    applyIndicatorVisibility();
+    persistMAVisible(); persistVwma();
+    refreshEyeButton();
+}
+/* 隱藏狀態下若使用者自己動了任一個勾選，就視為離開「隱藏模式」，避免快照過期造成之後還原成舊狀態 */
+function dropHiddenSnapshotIfNeeded() {
+    if (!maHiddenSnapshot) return;
+    maHiddenSnapshot = null;
+    LS.set('wr_maHiddenSnapshot', null);
+    refreshEyeButton();
+}
+
 function clearAllMA() {
     maConfig.forEach((cfg, idx) => {
         cfg.visible = false;
@@ -1135,7 +1700,7 @@ function applyPriceData(fit = true) {
 function setTimeframe(tf) {
     if (!globalPriceData.length) { currentTF = tf; LS.set('wr_tf', tf); }
     // 先把目前畫的圖形序列化 (以日期為錨點)，切換後再還原到新座標
-    const serialized = drawings.map(serializeShape).filter(Boolean);
+    const reanchor = drawLayers.main.reanchor();   // V34：先記住圖形的日期錨點
     currentTF = tf;
     LS.set('wr_tf', tf);
     ['D','W','M'].forEach(t => document.getElementById('tf-' + t).classList.toggle('active', t === tf));
@@ -1150,17 +1715,14 @@ function setTimeframe(tf) {
     }
     if (globalPriceData.length) {
         applyPriceData(true);
-        drawings = serialized.map(hydrateShape).filter(Boolean);
-        redrawDrawings();
+        reanchor();   // V34：換算回新週期的座標並重畫
     }
 }
 
-/* ══════════ 畫圖工具模組 (V21：可選取/拖曳/編輯/個別刪除) ══════════ */
-const drawCanvas = document.getElementById('draw-canvas');
-const dctx = drawCanvas.getContext('2d');
+/* ══════════ 畫圖工具模組 (V34：重構為可重複建立的元件，主圖與強弱對比雙圖共用同一套邏輯) ══════════ */
 const shapePanel = document.getElementById('shape-panel');
-let activeTool = null, drawings = [], pendingPoint = null, previewPoint = null;
-let selectedId = null, dragInfo = null, shapeIdSeq = 1;
+let shapeIdSeq = 1;
+let drawClipboard = null;   // V33：Ctrl+C 複製的圖形（以序列化格式暫存）
 const FIB_ALL = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
 const FIB_COLORS = { 0:'#787b86', 0.236:'#f23645', 0.382:'#ff9800', 0.5:'#4caf50', 0.618:'#26a69a', 0.786:'#00bcd4', 1:'#787b86' };
 /* V22：各工具的預設顏色/線寬/樣式（實線/虛線/點線）會記住你上次的修改
@@ -1174,254 +1736,8 @@ if (toolDefaults.hline.opacity === undefined) toolDefaults.hline.opacity = 1;
 if (toolDefaults.trend.opacity === undefined) toolDefaults.trend.opacity = 1;
 if (toolDefaults.rect.fill === undefined) toolDefaults.rect.fill = true;
 function persistToolDefaults() { LS.set('wr_toolDefaults', toolDefaults); }
+const LINE_DASH_PATTERNS = { solid: [], dashed: [7, 5], dotted: [1.5, 4] };   // V22
 
-/* V24：畫圖工具列 收合／釘選
-   V27 調整：沒有釘選時改成「自動收折」— 預設收合，滑鼠移到工具列上才自動展開，移開就自動收回；
-   釘選時才是手動固定（點收合鈕自己控制，狀態會被記住）。 */
-let toolbarPinned = LS.get('wr_toolbarPinned', false);
-let toolbarCollapsed = toolbarPinned ? LS.get('wr_toolbarCollapsed', false) : true;
-function applyToolbarState() {
-    const tb = document.getElementById('draw-toolbar');
-    tb.classList.toggle('collapsed', toolbarCollapsed);
-    document.getElementById('toolbar-pin-btn').classList.toggle('active', toolbarPinned);
-    document.getElementById('toolbar-collapse-btn').title = toolbarCollapsed ? '展開工具列' : '收合工具列';
-}
-function toggleToolbarCollapse() {
-    toolbarCollapsed = !toolbarCollapsed;
-    if (toolbarPinned) LS.set('wr_toolbarCollapsed', toolbarCollapsed);
-    applyToolbarState();
-}
-function toggleToolbarPin() {
-    toolbarPinned = !toolbarPinned;
-    LS.set('wr_toolbarPinned', toolbarPinned);
-    if (toolbarPinned) {
-        LS.set('wr_toolbarCollapsed', toolbarCollapsed);   // 釘選當下的狀態，之後重新整理網頁會記住
-    } else {
-        toolbarCollapsed = true;   // V27：取消釘選後，改回「自動收折」模式，預設收合、滑鼠移入才展開
-    }
-    applyToolbarState();
-}
-
-function initDrawingTools() {
-    applyToolbarState();   // V24：套用收合/釘選的記憶狀態
-    // V27：沒釘選時，滑鼠移到工具列上自動展開、移開自動收回
-    const toolbarEl = document.getElementById('draw-toolbar');
-    toolbarEl.addEventListener('mouseenter', () => {
-        if (!toolbarPinned && toolbarCollapsed) { toolbarCollapsed = false; applyToolbarState(); }
-    });
-    toolbarEl.addEventListener('mouseleave', () => {
-        if (!toolbarPinned && !toolbarCollapsed) { toolbarCollapsed = true; applyToolbarState(); }
-    });
-    resizeDrawCanvas();
-    mainChart.timeScale().subscribeVisibleLogicalRangeChange(() => redrawDrawings());
-    drawCanvas.addEventListener('mousedown', onDrawClick);
-    drawCanvas.addEventListener('mousemove', onDrawMove);
-
-    // 游標模式下的選取與拖曳（capture 攔截，命中圖形時不讓圖表平移）
-    const chartEl = document.getElementById('chart-container');
-    chartEl.addEventListener('mousedown', e => {
-        if (activeTool) return;
-        const r = chartEl.getBoundingClientRect();
-        const x = e.clientX - r.left, y = e.clientY - r.top;
-        const hit = hitTest(x, y);
-        if (hit) {
-            e.preventDefault(); e.stopPropagation();
-            selectedId = hit.id;
-            const shape = getShape(hit.id);
-            dragInfo = { id: hit.id, part: hit.part, startPt: toChartPoint(x, y), orig: JSON.parse(JSON.stringify(shape)) };
-            showShapePanel(shape);
-            redrawDrawings();
-        } else if (selectedId !== null) {
-            selectedId = null;
-            hideShapePanel();
-            redrawDrawings();
-        }
-    }, true);
-
-    document.addEventListener('mousemove', e => {
-        if (!dragInfo) return;
-        const r = drawCanvas.getBoundingClientRect();
-        const pt = toChartPoint(e.clientX - r.left, e.clientY - r.top);
-        if (!pt) return;
-        const s = getShape(dragInfo.id);
-        if (!s) return;
-        const dL = pt.logical - dragInfo.startPt.logical;
-        const dP = pt.price - dragInfo.startPt.price;
-        const o = dragInfo.orig;
-        if (s.type === 'hline') {
-            s.price = o.price + dP;
-        } else if (dragInfo.part === 'p1') {
-            s.p1 = { logical: o.p1.logical + dL, price: o.p1.price + dP };
-        } else if (dragInfo.part === 'p2') {
-            s.p2 = { logical: o.p2.logical + dL, price: o.p2.price + dP };
-        } else {
-            s.p1 = { logical: o.p1.logical + dL, price: o.p1.price + dP };
-            s.p2 = { logical: o.p2.logical + dL, price: o.p2.price + dP };
-        }
-        redrawDrawings();
-    });
-    document.addEventListener('mouseup', () => {
-        if (dragInfo) { dragInfo = null; persistDrawings(); }   // V22：拖曳結束後儲存
-    });
-
-    // V22：拖曳價格軸/滾輪縮放時，讓畫的圖形即時跟著重繪（原本只監聽時間軸變化）
-    let rafPending = false;
-    const scheduleRedraw = () => {
-        if (rafPending) return;
-        rafPending = true;
-        requestAnimationFrame(() => { rafPending = false; redrawDrawings(); });
-    };
-    document.addEventListener('mousemove', scheduleRedraw);
-    chartEl.addEventListener('wheel', scheduleRedraw, { passive: true });
-
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { pendingPoint = null; previewPoint = null; setTool(null); }
-        if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId !== null && document.activeElement.tagName !== 'INPUT') {
-            deleteSelected();
-        }
-    });
-}
-
-function resizeDrawCanvas() {
-    const c = document.getElementById('chart-container');
-    drawCanvas.width = c.clientWidth;
-    drawCanvas.height = c.clientHeight;
-    redrawDrawings();
-}
-
-function setTool(tool) {
-    activeTool = tool; pendingPoint = null; previewPoint = null;
-    document.querySelectorAll('.draw-tool-btn').forEach(b => b.classList.remove('active'));
-    const btn = document.getElementById(tool === null ? 'tool-cursor' : 'tool-' + tool);
-    if (btn) btn.classList.add('active');
-    drawCanvas.classList.toggle('drawing', tool !== null);
-    redrawDrawings();
-}
-
-function clearDrawings() {
-    drawings = []; pendingPoint = null; previewPoint = null; selectedId = null;
-    hideShapePanel(); redrawDrawings();
-    persistDrawings();   // V22：清除也要同步記憶
-}
-function getShape(id) { return drawings.find(d => d.id === id); }
-function deleteSelected() {
-    drawings = drawings.filter(d => d.id !== selectedId);
-    selectedId = null; hideShapePanel(); redrawDrawings();
-    persistDrawings();   // V22
-}
-
-/* ══════════ V22：圖形記憶 (以日期錨定，換股票/週期/重開網頁都能還原) ══════════ */
-function nearestIdxByTime(t) {
-    const n = displayData.length;
-    if (!n) return 0;
-    let lo = 0, hi = n - 1;
-    while (lo < hi) { const m = (lo + hi) >> 1; if (displayData[m].time < t) lo = m + 1; else hi = m; }
-    if (lo > 0) {
-        const dCur  = Math.abs(new Date(displayData[lo].time) - new Date(t));
-        const dPrev = Math.abs(new Date(displayData[lo - 1].time) - new Date(t));
-        if (dPrev <= dCur) return lo - 1;
-    }
-    return lo;
-}
-function serializePoint(p) {
-    const n = displayData.length;
-    if (!n || !p) return null;
-    let base = Math.floor(p.logical);
-    base = Math.max(0, Math.min(n - 1, base));
-    return { t: displayData[base].time, off: p.logical - base, price: p.price };
-}
-function hydratePoint(q) {
-    return { logical: nearestIdxByTime(q.t) + (q.off || 0), price: q.price };
-}
-function serializeShape(d) {
-    const s = { type: d.type, color: d.color, width: d.width, style: d.style || 'solid' };
-    if (d.type === 'hline') { s.price = d.price; s.opacity = d.opacity ?? 1; }
-    else {
-        s.p1 = serializePoint(d.p1);
-        s.p2 = serializePoint(d.p2);
-        if (!s.p1 || !s.p2) return null;
-        if (d.type === 'trend') s.opacity = d.opacity ?? 1;
-        if (d.type === 'rect') s.fill = d.fill !== false;
-    }
-    if (d.levels) s.levels = d.levels;
-    return s;
-}
-function hydrateShape(s) {
-    if (!s || !s.type) return null;
-    const d = { id: shapeIdSeq++, type: s.type, color: s.color || '#FFD700', width: s.width || 1.5, style: s.style || 'solid' };
-    if (s.type === 'hline') { d.price = s.price; d.opacity = s.opacity ?? 1; }
-    else {
-        if (!s.p1 || !s.p2) return null;
-        d.p1 = hydratePoint(s.p1);
-        d.p2 = hydratePoint(s.p2);
-        if (s.type === 'trend') d.opacity = s.opacity ?? 1;
-        if (s.type === 'rect') d.fill = s.fill !== false;
-    }
-    if (s.levels) d.levels = s.levels;
-    return d;
-}
-function persistDrawings() {
-    if (!currentSymbol || !displayData.length) return;
-    LS.set('wr_draw_' + currentSymbol, drawings.map(serializeShape).filter(Boolean));
-}
-function loadDrawings(symbol) {
-    const saved = LS.get('wr_draw_' + symbol, []);
-    drawings = (Array.isArray(saved) ? saved : []).map(hydrateShape).filter(Boolean);
-    pendingPoint = null; previewPoint = null; selectedId = null;
-    hideShapePanel(); redrawDrawings();
-}
-
-/* 座標轉換 */
-function toChartPoint(x, y) {
-    const logical = mainChart.timeScale().coordinateToLogical(x);
-    const price = mainSeries.coordinateToPrice(y);
-    if (logical === null || price === null) return null;
-    return { logical, price };
-}
-function toPixel(pt) {
-    const x = mainChart.timeScale().logicalToCoordinate(pt.logical);
-    const y = mainSeries.priceToCoordinate(pt.price);
-    if (x === null || y === null) return null;
-    return { x, y };
-}
-
-/* 新增圖形 */
-function onDrawClick(e) {
-    if (!activeTool) return;
-    const r = drawCanvas.getBoundingClientRect();
-    const pt = toChartPoint(e.clientX - r.left, e.clientY - r.top);
-    if (!pt) return;
-    if (activeTool === 'hline') {
-        const def = toolDefaults.hline;
-        drawings.push({ id: shapeIdSeq++, type: 'hline', price: pt.price, color: def.color, width: def.width, style: def.style, opacity: def.opacity ?? 1 });
-        persistDrawings();   // V22
-        setTool(null); return;
-    }
-    // V24：畫趨勢線時按住 Shift，把第二點的價格鎖定成跟第一點一樣（方便畫水平線段）
-    if (activeTool === 'trend' && pendingPoint && e.shiftKey) pt.price = pendingPoint.price;
-    if (!pendingPoint) { pendingPoint = pt; }
-    else {
-        const def = toolDefaults[activeTool] || { color: '#FFD700', width: 1.5, style: 'solid' };
-        const s = { id: shapeIdSeq++, type: activeTool, p1: pendingPoint, p2: pt, color: def.color, width: def.width, style: def.style };
-        if (activeTool === 'trend') s.opacity = def.opacity ?? 1;
-        if (activeTool === 'rect') s.fill = def.fill !== false;
-        if (activeTool === 'fib') { s.levels = {}; FIB_ALL.forEach(lv => s.levels[lv] = true); }
-        drawings.push(s);
-        persistDrawings();   // V22
-        pendingPoint = null; previewPoint = null; setTool(null);
-    }
-    redrawDrawings();
-}
-function onDrawMove(e) {
-    if (!activeTool || !pendingPoint) return;
-    const r = drawCanvas.getBoundingClientRect();
-    previewPoint = toChartPoint(e.clientX - r.left, e.clientY - r.top);
-    // V24：預覽階段同樣支援 Shift 水平鎖定，畫的時候就能看到會鎖平
-    if (activeTool === 'trend' && previewPoint && e.shiftKey) previewPoint.price = pendingPoint.price;
-    redrawDrawings();
-}
-
-/* 命中測試 */
 function distToSeg(px, py, x1, y1, x2, y2) {
     const dx = x2 - x1, dy = y2 - y1;
     const len2 = dx * dx + dy * dy;
@@ -1430,65 +1746,521 @@ function distToSeg(px, py, x1, y1, x2, y2) {
     const cx = x1 + t * dx, cy = y1 + t * dy;
     return Math.hypot(px - cx, py - cy);
 }
-function hitTest(x, y) {
-    const TOL = 7;
-    for (let i = drawings.length - 1; i >= 0; i--) {
-        const d = drawings[i];
-        if (d.type === 'hline') {
-            const ly = mainSeries.priceToCoordinate(d.price);
-            if (ly !== null && Math.abs(y - ly) < TOL) return { id: d.id, part: 'body' };
-        } else {
-            const a = toPixel(d.p1), b = toPixel(d.p2);
-            if (!a || !b) continue;
-            if (Math.hypot(x - a.x, y - a.y) < TOL) return { id: d.id, part: 'p1' };
-            if (Math.hypot(x - b.x, y - b.y) < TOL) return { id: d.id, part: 'p2' };
-            if (d.type === 'trend') {
-                if (distToSeg(x, y, a.x, a.y, b.x, b.y) < TOL) return { id: d.id, part: 'body' };
-            } else if (d.type === 'rect') {
-                const xL = Math.min(a.x,b.x), xR = Math.max(a.x,b.x), yT = Math.min(a.y,b.y), yB = Math.max(a.y,b.y);
-                const onEdge = (x >= xL - TOL && x <= xR + TOL && y >= yT - TOL && y <= yB + TOL) &&
-                               (Math.abs(x - xL) < TOL || Math.abs(x - xR) < TOL || Math.abs(y - yT) < TOL || Math.abs(y - yB) < TOL);
-                const inside = x > xL && x < xR && y > yT && y < yB;
-                if (onEdge || inside) return { id: d.id, part: 'body' };
-            } else if (d.type === 'fib') {
-                const xL = Math.min(a.x, b.x), xR = Math.max(a.x, b.x);
-                if (x >= xL - TOL && x <= xR + TOL) {
-                    const hi = Math.max(d.p1.price, d.p2.price), lo = Math.min(d.p1.price, d.p2.price);
-                    for (const lv of FIB_ALL) {
-                        if (d.levels && !d.levels[lv]) continue;
-                        const ly = mainSeries.priceToCoordinate(hi - (hi - lo) * lv);
-                        if (ly !== null && Math.abs(y - ly) < TOL) return { id: d.id, part: 'body' };
+
+/* 工具列的 HTML 由程式產生，主圖與兩個對比視窗共用同一份樣板，避免三份手寫版本走樣 */
+function buildDrawToolbarHTML(key) {
+    const call = `DL('${key}')`;
+    return `
+    <div class="draw-toolbar-header">
+        <button class="tb-mini-btn" id="${key}-pin-btn" onclick="${call}.togglePin()" title="釘選：固定收合/展開狀態">
+            <svg viewBox="0 0 24 24"><path d="M12 2 L12 10 M8 6 L16 6 M6 10 L18 10 L15 14 L15 20 L9 20 L9 14 Z" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
+        <button class="tb-mini-btn" id="${key}-collapse-btn" onclick="${call}.toggleCollapse()" title="收合/展開工具列">
+            <svg class="tb-collapse-icon" viewBox="0 0 24 24"><path d="M15 5 L8 12 L15 19" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="draw-toolbar-body">
+        <button class="draw-tool-btn active" data-tool="cursor" onclick="${call}.setTool(null)" title="游標 (選取/拖曳/平移)">
+            <svg viewBox="0 0 24 24"><path d="M5 3 L11 21 L13.5 13.5 L21 11 Z"/></svg></button>
+        <button class="draw-tool-btn" data-tool="hline" onclick="${call}.setTool('hline')" title="水平線">
+            <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><circle cx="12" cy="12" r="2.5"/></svg></button>
+        <button class="draw-tool-btn" data-tool="trend" onclick="${call}.setTool('trend')" title="趨勢線 (按住 Shift 可鎖定水平)">
+            <svg viewBox="0 0 24 24"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="4" r="2"/></svg></button>
+        <button class="draw-tool-btn" data-tool="rect" onclick="${call}.setTool('rect')" title="矩形框">
+            <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12"/></svg></button>
+        <button class="draw-tool-btn" data-tool="fib" onclick="${call}.setTool('fib')" title="費波那契回撤">
+            <svg viewBox="0 0 24 24"><line x1="3" y1="5" x2="21" y2="5"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="3" y1="20" x2="21" y2="20"/></svg></button>
+        <button class="draw-tool-btn danger" onclick="${call}.clear()" title="清除全部圖形">
+            <svg viewBox="0 0 24 24"><path d="M5 7 H19 M9 7 V4 H15 V7 M7 7 L8 20 H16 L17 7"/></svg></button>
+    </div>`;
+}
+
+const drawLayers = {};
+let activeDrawLayer = null;   // 目前正在操作（有選取圖形/啟用工具）的那一層，屬性面板與鍵盤快捷鍵都作用在它身上
+function DL(key) { return drawLayers[key]; }
+
+/* cfg: { key, canvasId, containerId, toolbarId, getChart, getSeries, getData, getSymbol, storagePrefix } */
+function createDrawingLayer(cfg) {
+    const canvas = document.getElementById(cfg.canvasId);
+    const dctx = canvas.getContext('2d');
+    const container = document.getElementById(cfg.containerId);
+    const toolbarEl = document.getElementById(cfg.toolbarId);
+
+    const L = {
+        key: cfg.key, canvas, dctx, container, toolbarEl,
+        activeTool: null, drawings: [], pendingPoint: null, previewPoint: null,
+        selectedId: null, dragInfo: null,
+        pinned: LS.get(`wr_tb_${cfg.key}_pinned`, false),
+        collapsed: true,
+        get chart()  { return cfg.getChart(); },
+        get series() { return cfg.getSeries(); },
+        get data()   { return cfg.getData() || []; },
+        get symbol() { return cfg.getSymbol(); },
+        storageKey(sym) { return cfg.storagePrefix + (sym || L.symbol); }
+    };
+    L.collapsed = L.pinned ? LS.get(`wr_tb_${cfg.key}_collapsed`, false) : true;
+
+    /* ---- 工具列收合/釘選 ---- */
+    L.applyToolbarState = function () {
+        toolbarEl.classList.toggle('collapsed', L.collapsed);
+        const pin = document.getElementById(`${cfg.key}-pin-btn`);
+        const col = document.getElementById(`${cfg.key}-collapse-btn`);
+        if (pin) pin.classList.toggle('active', L.pinned);
+        if (col) col.title = L.collapsed ? '展開工具列' : '收合工具列';
+    };
+    L.toggleCollapse = function () {
+        L.collapsed = !L.collapsed;
+        if (L.pinned) LS.set(`wr_tb_${cfg.key}_collapsed`, L.collapsed);
+        L.applyToolbarState();
+    };
+    L.togglePin = function () {
+        L.pinned = !L.pinned;
+        LS.set(`wr_tb_${cfg.key}_pinned`, L.pinned);
+        if (L.pinned) LS.set(`wr_tb_${cfg.key}_collapsed`, L.collapsed);
+        else L.collapsed = true;   // V27：取消釘選後回到「自動收折」
+        L.applyToolbarState();
+    };
+
+    /* ---- 座標轉換 ---- */
+    L.toChartPoint = function (x, y) {
+        const logical = L.chart.timeScale().coordinateToLogical(x);
+        const price = L.series.coordinateToPrice(y);
+        if (logical === null || price === null) return null;
+        return { logical, price };
+    };
+    L.toPixel = function (pt) {
+        const x = L.chart.timeScale().logicalToCoordinate(pt.logical);
+        const y = L.series.priceToCoordinate(pt.price);
+        if (x === null || y === null) return null;
+        return { x, y };
+    };
+
+    /* ---- 圖形記憶（以日期錨定） ---- */
+    L.nearestIdxByTime = function (t) {
+        const data = L.data, n = data.length;
+        if (!n) return 0;
+        let lo = 0, hi = n - 1;
+        while (lo < hi) { const m = (lo + hi) >> 1; if (data[m].time < t) lo = m + 1; else hi = m; }
+        if (lo > 0) {
+            const dCur  = Math.abs(new Date(data[lo].time) - new Date(t));
+            const dPrev = Math.abs(new Date(data[lo - 1].time) - new Date(t));
+            if (dPrev <= dCur) return lo - 1;
+        }
+        return lo;
+    };
+    L.serializePoint = function (p) {
+        const data = L.data, n = data.length;
+        if (!n || !p) return null;
+        let base = Math.floor(p.logical);
+        base = Math.max(0, Math.min(n - 1, base));
+        return { t: data[base].time, off: p.logical - base, price: p.price };
+    };
+    L.hydratePoint = function (q) {
+        return { logical: L.nearestIdxByTime(q.t) + (q.off || 0), price: q.price };
+    };
+    L.serializeShape = function (d) {
+        const s = { type: d.type, color: d.color, width: d.width, style: d.style || 'solid' };
+        if (d.type === 'hline') { s.price = d.price; s.opacity = d.opacity ?? 1; }
+        else {
+            s.p1 = L.serializePoint(d.p1);
+            s.p2 = L.serializePoint(d.p2);
+            if (!s.p1 || !s.p2) return null;
+            if (d.type === 'trend') s.opacity = d.opacity ?? 1;
+            if (d.type === 'rect') s.fill = d.fill !== false;
+        }
+        if (d.levels) s.levels = d.levels;
+        return s;
+    };
+    L.hydrateShape = function (s) {
+        if (!s || !s.type) return null;
+        const d = { id: shapeIdSeq++, type: s.type, color: s.color || '#FFD700', width: s.width || 1.5, style: s.style || 'solid' };
+        if (s.type === 'hline') { d.price = s.price; d.opacity = s.opacity ?? 1; }
+        else {
+            if (!s.p1 || !s.p2) return null;
+            d.p1 = L.hydratePoint(s.p1);
+            d.p2 = L.hydratePoint(s.p2);
+            if (s.type === 'trend') d.opacity = s.opacity ?? 1;
+            if (s.type === 'rect') d.fill = s.fill !== false;
+        }
+        if (s.levels) d.levels = s.levels;
+        return d;
+    };
+    L.persist = function () {
+        if (!L.symbol || !L.data.length) return;
+        LS.set(L.storageKey(), L.drawings.map(L.serializeShape).filter(Boolean));
+    };
+    L.load = function (symbol) {
+        const saved = LS.get(L.storageKey(symbol), []);
+        L.drawings = (Array.isArray(saved) ? saved : []).map(L.hydrateShape).filter(Boolean);
+        L.pendingPoint = null; L.previewPoint = null; L.selectedId = null;
+        hideShapePanel(); L.redraw();
+    };
+    /* 切換週期時用：先序列化再還原，讓圖形貼合新的K棒座標 */
+    L.reanchor = function () {
+        const serialized = L.drawings.map(L.serializeShape).filter(Boolean);
+        return () => { L.drawings = serialized.map(L.hydrateShape).filter(Boolean); L.redraw(); };
+    };
+
+    /* ---- 工具狀態 ---- */
+    L.getShape = function (id) { return L.drawings.find(d => d.id === id); };
+    L.setTool = function (tool) {
+        // 切換到這一層時，把其他層正在進行的畫圖動作取消，避免兩邊同時處於半完成狀態
+        Object.values(drawLayers).forEach(o => {
+            if (o !== L && o.activeTool !== null) { o.activeTool = null; o.pendingPoint = null; o.previewPoint = null; o.syncToolButtons(); o.canvas.classList.remove('drawing'); o.redraw(); }
+        });
+        L.activeTool = tool; L.pendingPoint = null; L.previewPoint = null;
+        activeDrawLayer = L;
+        L.syncToolButtons();
+        canvas.classList.toggle('drawing', tool !== null);
+        L.redraw();
+    };
+    L.syncToolButtons = function () {
+        toolbarEl.querySelectorAll('.draw-tool-btn').forEach(b => b.classList.remove('active'));
+        const sel = toolbarEl.querySelector(`.draw-tool-btn[data-tool="${L.activeTool === null ? 'cursor' : L.activeTool}"]`);
+        if (sel) sel.classList.add('active');
+    };
+    L.clear = function () {
+        L.drawings = []; L.pendingPoint = null; L.previewPoint = null; L.selectedId = null;
+        hideShapePanel(); L.redraw(); L.persist();
+    };
+    L.deleteSelected = function () {
+        L.drawings = L.drawings.filter(d => d.id !== L.selectedId);
+        L.selectedId = null; hideShapePanel(); L.redraw(); L.persist();
+    };
+    L.resize = function () {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        L.redraw();
+    };
+
+    /* ---- 命中測試 ---- */
+    L.hitTest = function (x, y) {
+        const TOL = 7;
+        for (let i = L.drawings.length - 1; i >= 0; i--) {
+            const d = L.drawings[i];
+            if (d.type === 'hline') {
+                const ly = L.series.priceToCoordinate(d.price);
+                if (ly !== null && Math.abs(y - ly) < TOL) return { id: d.id, part: 'body' };
+            } else {
+                const a = L.toPixel(d.p1), b = L.toPixel(d.p2);
+                if (!a || !b) continue;
+                if (Math.hypot(x - a.x, y - a.y) < TOL) return { id: d.id, part: 'p1' };
+                if (Math.hypot(x - b.x, y - b.y) < TOL) return { id: d.id, part: 'p2' };
+                if (d.type === 'trend') {
+                    if (distToSeg(x, y, a.x, a.y, b.x, b.y) < TOL) return { id: d.id, part: 'body' };
+                } else if (d.type === 'rect') {
+                    const xL = Math.min(a.x,b.x), xR = Math.max(a.x,b.x), yT = Math.min(a.y,b.y), yB = Math.max(a.y,b.y);
+                    const onEdge = (x >= xL - TOL && x <= xR + TOL && y >= yT - TOL && y <= yB + TOL) &&
+                                   (Math.abs(x - xL) < TOL || Math.abs(x - xR) < TOL || Math.abs(y - yT) < TOL || Math.abs(y - yB) < TOL);
+                    const inside = x > xL && x < xR && y > yT && y < yB;
+                    if (onEdge || inside) return { id: d.id, part: 'body' };
+                } else if (d.type === 'fib') {
+                    const xL = Math.min(a.x, b.x), xR = Math.max(a.x, b.x);
+                    if (x >= xL - TOL && x <= xR + TOL) {
+                        const hi = Math.max(d.p1.price, d.p2.price), lo = Math.min(d.p1.price, d.p2.price);
+                        for (const lv of FIB_ALL) {
+                            if (d.levels && !d.levels[lv]) continue;
+                            const ly = L.series.priceToCoordinate(hi - (hi - lo) * lv);
+                            if (ly !== null && Math.abs(y - ly) < TOL) return { id: d.id, part: 'body' };
+                        }
                     }
                 }
             }
         }
-    }
-    return null;
+        return null;
+    };
+
+    /* ---- 繪製 ---- */
+    L.getPlotRightEdge = function () {
+        try {
+            const w = L.chart.priceScale('right').width();
+            if (typeof w === 'number' && w > 0) return Math.max(0, canvas.width - w);
+        } catch (e) {}
+        return canvas.width;
+    };
+    L.drawHandle = function (p) {
+        dctx.beginPath();
+        dctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+        dctx.fillStyle = '#fff'; dctx.fill();
+        dctx.strokeStyle = '#26a69a'; dctx.lineWidth = 2; dctx.stroke();
+    };
+    L.renderShape = function (d, isPreview, isSelected) {
+        dctx.save();
+        dctx.lineWidth = d.width || 1.5;
+        dctx.lineCap = (d.style === 'dotted') ? 'round' : 'butt';
+        dctx.setLineDash(isPreview ? [5, 4] : (LINE_DASH_PATTERNS[d.style] || []));
+        dctx.font = '11px monospace';
+
+        if (d.type === 'hline') {
+            const y = L.series.priceToCoordinate(d.price);
+            if (y === null) { dctx.restore(); return; }
+            dctx.strokeStyle = hexToRgba(d.color, d.opacity ?? 1);
+            dctx.beginPath(); dctx.moveTo(0, y); dctx.lineTo(L.getPlotRightEdge(), y); dctx.stroke();
+            dctx.fillStyle = d.color;
+            dctx.fillText(d.price.toFixed(2), 6, y - 5);
+            if (isSelected) L.drawHandle({ x: L.getPlotRightEdge() / 2, y: y });
+
+        } else if (d.type === 'trend') {
+            const a = L.toPixel(d.p1), b = L.toPixel(d.p2);
+            if (!a || !b) { dctx.restore(); return; }
+            dctx.strokeStyle = hexToRgba(d.color, d.opacity ?? 1);
+            dctx.beginPath(); dctx.moveTo(a.x, a.y); dctx.lineTo(b.x, b.y); dctx.stroke();
+            if (isSelected) { L.drawHandle(a); L.drawHandle(b); }
+            else {
+                dctx.fillStyle = d.color;
+                [a, b].forEach(p => { dctx.beginPath(); dctx.arc(p.x, p.y, 3, 0, Math.PI*2); dctx.fill(); });
+            }
+
+        } else if (d.type === 'rect') {
+            const a = L.toPixel(d.p1), b = L.toPixel(d.p2);
+            if (!a || !b) { dctx.restore(); return; }
+            const x = Math.min(a.x,b.x), y = Math.min(a.y,b.y), w = Math.abs(b.x-a.x), h = Math.abs(b.y-a.y);
+            dctx.strokeStyle = d.color;
+            if (d.fill !== false) { dctx.fillStyle = hexToRgba(d.color, 0.12); dctx.fillRect(x, y, w, h); }
+            dctx.strokeRect(x, y, w, h);
+            if (isSelected) { L.drawHandle(a); L.drawHandle(b); }
+
+        } else if (d.type === 'fib') {
+            const a = L.toPixel(d.p1), b = L.toPixel(d.p2);
+            if (!a || !b) { dctx.restore(); return; }
+            const xL = Math.min(a.x, b.x), xR = Math.max(a.x, b.x);
+            const hi = Math.max(d.p1.price, d.p2.price), lo = Math.min(d.p1.price, d.p2.price);
+            const range = hi - lo;
+            FIB_ALL.forEach(lv => {
+                if (d.levels && !d.levels[lv]) return;
+                const price = hi - range * lv;
+                const y = L.series.priceToCoordinate(price);
+                if (y === null) return;
+                const c = FIB_COLORS[lv] || d.color;
+                dctx.strokeStyle = c;
+                dctx.beginPath(); dctx.moveTo(xL, y); dctx.lineTo(xR, y); dctx.stroke();
+                dctx.fillStyle = c;
+                dctx.fillText((lv*100).toFixed(1) + '%  ' + price.toFixed(2), xR + 6, y + 4);
+            });
+            const yTop = L.series.priceToCoordinate(hi), yBot = L.series.priceToCoordinate(lo);
+            if (yTop !== null && yBot !== null) {
+                dctx.fillStyle = hexToRgba(d.color, 0.05);
+                dctx.fillRect(xL, yTop, xR - xL, yBot - yTop);
+            }
+            if (isSelected) { L.drawHandle(a); L.drawHandle(b); }
+        }
+        dctx.restore();
+    };
+    L.redraw = function () {
+        dctx.clearRect(0, 0, canvas.width, canvas.height);
+        /* V38 修正：畫圖用的畫布跟整個圖表容器一樣寬，但右側有一段是價格座標軸。
+           先前只有「水平線」有限制不要畫進座標軸，趨勢線/矩形/費波那契都沒有，
+           所以線段只要延伸到最右邊就會蓋在座標軸的數字上。
+           這裡改成統一在畫布上設一個「只到K線繪圖區右緣」的裁切範圍，
+           所有圖形都不會再溢出到座標軸。 */
+        dctx.save();
+        dctx.beginPath();
+        dctx.rect(0, 0, L.getPlotRightEdge(), canvas.height);
+        dctx.clip();
+        L.drawings.forEach(d => L.renderShape(d, false, d.id === L.selectedId));
+        if (L.activeTool && L.activeTool !== 'hline' && L.pendingPoint && L.previewPoint) {
+            const def = toolDefaults[L.activeTool] || { color: '#FFD700', width: 1.5 };
+            const preview = { type: L.activeTool, p1: L.pendingPoint, p2: L.previewPoint, color: def.color, width: def.width, fill: def.fill };
+            if (L.activeTool === 'fib') { preview.levels = {}; FIB_ALL.forEach(lv => preview.levels[lv] = true); }
+            L.renderShape(preview, true, false);
+        }
+        dctx.restore();
+    };
+
+    /* ---- 事件 ---- */
+    L.onDrawClick = function (e) {
+        if (!L.activeTool) return;
+        if (e.button !== 0) return;   // V33：只接受左鍵
+        const r = canvas.getBoundingClientRect();
+        const pt = L.toChartPoint(e.clientX - r.left, e.clientY - r.top);
+        if (!pt) return;
+        activeDrawLayer = L;
+        if (L.activeTool === 'hline') {
+            const def = toolDefaults.hline;
+            L.drawings.push({ id: shapeIdSeq++, type: 'hline', price: pt.price, color: def.color, width: def.width, style: def.style, opacity: def.opacity ?? 1 });
+            L.persist(); L.setTool(null); return;
+        }
+        if (L.activeTool === 'trend' && L.pendingPoint && e.shiftKey) pt.price = L.pendingPoint.price;
+        if (!L.pendingPoint) { L.pendingPoint = pt; }
+        else {
+            const def = toolDefaults[L.activeTool] || { color: '#FFD700', width: 1.5, style: 'solid' };
+            const s = { id: shapeIdSeq++, type: L.activeTool, p1: L.pendingPoint, p2: pt, color: def.color, width: def.width, style: def.style };
+            if (L.activeTool === 'trend') s.opacity = def.opacity ?? 1;
+            if (L.activeTool === 'rect') s.fill = def.fill !== false;
+            if (L.activeTool === 'fib') { s.levels = {}; FIB_ALL.forEach(lv => s.levels[lv] = true); }
+            L.drawings.push(s);
+            L.persist();
+            L.pendingPoint = null; L.previewPoint = null; L.setTool(null);
+        }
+        L.redraw();
+    };
+    L.onDrawMove = function (e) {
+        if (!L.activeTool || !L.pendingPoint) return;
+        const r = canvas.getBoundingClientRect();
+        L.previewPoint = L.toChartPoint(e.clientX - r.left, e.clientY - r.top);
+        if (L.activeTool === 'trend' && L.previewPoint && e.shiftKey) L.previewPoint.price = L.pendingPoint.price;
+        L.redraw();
+    };
+
+    L.init = function () {
+        toolbarEl.innerHTML = buildDrawToolbarHTML(cfg.key);
+        L.applyToolbarState();
+        toolbarEl.addEventListener('mouseenter', () => {
+            if (!L.pinned && L.collapsed) { L.collapsed = false; L.applyToolbarState(); }
+        });
+        toolbarEl.addEventListener('mouseleave', () => {
+            if (!L.pinned && !L.collapsed) { L.collapsed = true; L.applyToolbarState(); }
+        });
+        L.resize();
+        L.chart.timeScale().subscribeVisibleLogicalRangeChange(() => L.redraw());
+        canvas.addEventListener('mousedown', L.onDrawClick);
+        canvas.addEventListener('mousemove', L.onDrawMove);
+
+        // 游標模式下的選取與拖曳（capture 攔截，命中圖形時不讓圖表平移）
+        container.addEventListener('mousedown', e => {
+            if (L.activeTool) return;
+            if (e.button !== 0) return;
+            const r = container.getBoundingClientRect();
+            const x = e.clientX - r.left, y = e.clientY - r.top;
+            const hit = L.hitTest(x, y);
+            if (hit) {
+                e.preventDefault(); e.stopPropagation();
+                activeDrawLayer = L;
+                L.selectedId = hit.id;
+                const shape = L.getShape(hit.id);
+                L.dragInfo = { id: hit.id, part: hit.part, startPt: L.toChartPoint(x, y), orig: JSON.parse(JSON.stringify(shape)) };
+                showShapePanel(shape);
+                L.redraw();
+            } else if (L.selectedId !== null) {
+                L.selectedId = null;
+                hideShapePanel();
+                L.redraw();
+            }
+        }, true);
+
+        document.addEventListener('mousemove', e => {
+            if (!L.dragInfo) return;
+            const r = canvas.getBoundingClientRect();
+            const pt = L.toChartPoint(e.clientX - r.left, e.clientY - r.top);
+            if (!pt) return;
+            const s = L.getShape(L.dragInfo.id);
+            if (!s) return;
+            const dLg = pt.logical - L.dragInfo.startPt.logical;
+            const dP = pt.price - L.dragInfo.startPt.price;
+            const o = L.dragInfo.orig;
+            if (s.type === 'hline') {
+                s.price = o.price + dP;
+            } else if (L.dragInfo.part === 'p1') {
+                s.p1 = { logical: o.p1.logical + dLg, price: o.p1.price + dP };
+            } else if (L.dragInfo.part === 'p2') {
+                s.p2 = { logical: o.p2.logical + dLg, price: o.p2.price + dP };
+            } else {
+                s.p1 = { logical: o.p1.logical + dLg, price: o.p1.price + dP };
+                s.p2 = { logical: o.p2.logical + dLg, price: o.p2.price + dP };
+            }
+            L.redraw();
+        });
+        document.addEventListener('mouseup', () => {
+            if (L.dragInfo) { L.dragInfo = null; L.persist(); }
+            // V42：畫圖動作結束後，補套用剛才因為忙碌而延後的雲端更新
+            if (pendingCloudApply && !L.pendingPoint) { pendingCloudApply = false; pullFromCloud(true); }
+        });
+
+        let rafPending = false;
+        const scheduleRedraw = () => {
+            if (rafPending) return;
+            rafPending = true;
+            requestAnimationFrame(() => { rafPending = false; L.redraw(); });
+        };
+        container.addEventListener('mousemove', scheduleRedraw);
+        container.addEventListener('wheel', scheduleRedraw, { passive: true });
+
+        // V33：右鍵跳出畫圖工具
+        const cancelOnRightClick = e => {
+            if (L.activeTool || L.pendingPoint) {
+                e.preventDefault();
+                L.pendingPoint = null; L.previewPoint = null;
+                L.setTool(null); L.redraw();
+            }
+        };
+        canvas.addEventListener('contextmenu', cancelOnRightClick);
+        container.addEventListener('contextmenu', cancelOnRightClick);
+    };
+
+    drawLayers[cfg.key] = L;
+    return L;
 }
 
-/* 屬性面板 */
+/* 建立三個畫圖層：主圖 + 強弱對比的上下兩個視窗 */
+function initDrawingTools() {
+    createDrawingLayer({
+        key: 'main', canvasId: 'main-canvas', containerId: 'chart-container', toolbarId: 'main-toolbar',
+        getChart: () => mainChart, getSeries: () => mainSeries,
+        getData: () => displayData, getSymbol: () => currentSymbol, storagePrefix: 'wr_draw_'
+    }).init();
+    [1, 2].forEach(n => {
+        createDrawingLayer({
+            key: 'cmp' + n, canvasId: `cmp${n}-canvas`, containerId: `compare-chart-${n}`, toolbarId: `cmp${n}-toolbar`,
+            getChart: () => compareChart[n], getSeries: () => compareSeries[n],
+            getData: () => compareData[n],
+            getSymbol: () => { const el = document.getElementById(`compare-symbol-${n}`); return el && el.value ? el.value.trim() : ''; },
+            storagePrefix: 'wr_drawcmp_'
+        }).init();
+    });
+    activeDrawLayer = drawLayers.main;
+
+    /* 鍵盤快捷鍵：作用在「最後操作的那一層」 */
+    document.addEventListener('keydown', e => {
+        const L = activeDrawLayer;
+        if (!L) return;
+        if (e.key === 'Escape') { L.pendingPoint = null; L.previewPoint = null; L.setTool(null); }
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+        if ((e.key === 'Delete' || e.key === 'Backspace') && L.selectedId !== null) L.deleteSelected();
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+            const s = L.getShape(L.selectedId);
+            if (s) drawClipboard = L.serializeShape(s);
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+            if (!drawClipboard) return;
+            const copy = L.hydrateShape(drawClipboard);   // 可貼到任何一層：以日期錨定重新定位
+            if (!copy) return;
+            const shiftBars = 3;
+            let priceShift = 0;
+            const data = L.data;
+            if (data.length) {
+                const hi = Math.max(...data.slice(-120).map(d => d.high));
+                const lo = Math.min(...data.slice(-120).map(d => d.low));
+                priceShift = (hi - lo) * 0.02;
+            }
+            if (copy.type === 'hline') copy.price -= priceShift;
+            else {
+                copy.p1 = { logical: copy.p1.logical + shiftBars, price: copy.p1.price - priceShift };
+                copy.p2 = { logical: copy.p2.logical + shiftBars, price: copy.p2.price - priceShift };
+            }
+            L.drawings.push(copy);
+            L.selectedId = copy.id;
+            showShapePanel(copy);
+            L.persist(); L.redraw();
+        }
+    });
+}
+
+/* ---- 屬性面板（三層共用同一個面板，作用在 activeDrawLayer 上） ---- */
 function showShapePanel(s) {
     document.getElementById('sp-color').value = s.color;
     document.getElementById('sp-width').value = s.width;
-    updateStyleButtons(s.style || 'solid');   // V22
+    updateStyleButtons(s.style || 'solid');
     const fibRow = document.getElementById('sp-fib-row');
     const opacityRow = document.getElementById('sp-opacity-row');
     const fillRow = document.getElementById('sp-fill-row');
-    // V24：透明度只對水平線/趨勢線有意義；背景顯示只對矩形框有意義
     if (s.type === 'hline' || s.type === 'trend') {
         opacityRow.style.display = 'flex';
         const pct = Math.round((s.opacity ?? 1) * 100);
         document.getElementById('sp-opacity').value = pct;
         document.getElementById('sp-opacity-val').textContent = pct + '%';
-    } else {
-        opacityRow.style.display = 'none';
-    }
+    } else opacityRow.style.display = 'none';
     if (s.type === 'rect') {
         fillRow.style.display = 'flex';
         document.getElementById('sp-fill').checked = s.fill !== false;
-    } else {
-        fillRow.style.display = 'none';
-    }
+    } else fillRow.style.display = 'none';
     if (s.type === 'fib') {
         fibRow.style.display = 'flex';
         let html = '';
@@ -1497,28 +2269,29 @@ function showShapePanel(s) {
             html += `<label><input type="checkbox" data-lv="${lv}" ${checked} onchange="spApply()"> ${(lv*100).toFixed(1)}%</label>`;
         });
         document.getElementById('sp-fib-levels').innerHTML = html;
-    } else {
-        fibRow.style.display = 'none';
-    }
+    } else fibRow.style.display = 'none';
     shapePanel.classList.add('show');
+    // 把面板移到目前操作的那一個圖表區塊裡，才不會跑到別的視窗上面
+    if (activeDrawLayer && shapePanel.parentNode !== activeDrawLayer.container.parentNode) {
+        activeDrawLayer.container.parentNode.appendChild(shapePanel);
+    }
 }
 function hideShapePanel() { shapePanel.classList.remove('show'); }
-function updateStyleButtons(style) {   // V22
+function updateStyleButtons(style) {
     document.querySelectorAll('#sp-style-group .sp-style-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.style === style);
     });
 }
-function spSetStyle(style) {   // V22：點選線段樣式（實線／虛線／點線）
-    updateStyleButtons(style);
-    spApply();
-}
+function spSetStyle(style) { updateStyleButtons(style); spApply(); }
 function spApply() {
-    const s = getShape(selectedId);
+    const L = activeDrawLayer;
+    if (!L) return;
+    const s = L.getShape(L.selectedId);
     if (!s) return;
     s.color = document.getElementById('sp-color').value;
     s.width = parseFloat(document.getElementById('sp-width').value) || 1.5;
     const activeBtn = document.querySelector('#sp-style-group .sp-style-btn.active');
-    s.style = activeBtn ? activeBtn.dataset.style : (s.style || 'solid');   // V22
+    s.style = activeBtn ? activeBtn.dataset.style : (s.style || 'solid');
     const def = { color: s.color, width: s.width, style: s.style };
     if (s.type === 'hline' || s.type === 'trend') {
         const pct = parseInt(document.getElementById('sp-opacity').value) || 100;
@@ -1526,122 +2299,22 @@ function spApply() {
         document.getElementById('sp-opacity-val').textContent = pct + '%';
         def.opacity = s.opacity;
     }
-    if (s.type === 'rect') {
-        s.fill = document.getElementById('sp-fill').checked;
-        def.fill = s.fill;
-    }
+    if (s.type === 'rect') { s.fill = document.getElementById('sp-fill').checked; def.fill = s.fill; }
     if (s.type === 'fib') {
         document.querySelectorAll('#sp-fib-levels input').forEach(cb => {
             s.levels[parseFloat(cb.dataset.lv)] = cb.checked;
         });
     }
-    // V22：把這次修改記成該工具的新預設值，下次畫同類圖形直接套用
     toolDefaults[s.type] = Object.assign({}, toolDefaults[s.type], def);
     persistToolDefaults();
-    persistDrawings();
-    redrawDrawings();
+    L.persist(); L.redraw();
 }
+function deleteSelected() { if (activeDrawLayer) activeDrawLayer.deleteSelected(); }
 
-/* 繪製 */
-function redrawDrawings() {
-    dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-    drawings.forEach(d => renderShape(d, false, d.id === selectedId));
-    if (activeTool && activeTool !== 'hline' && pendingPoint && previewPoint) {
-        const def = toolDefaults[activeTool] || { color: '#FFD700', width: 1.5 };
-        const preview = { type: activeTool, p1: pendingPoint, p2: previewPoint, color: def.color, width: def.width, fill: def.fill };
-        if (activeTool === 'fib') { preview.levels = {}; FIB_ALL.forEach(lv => preview.levels[lv] = true); }
-        renderShape(preview, true, false);
-    }
-}
-
-function drawHandle(p) {
-    dctx.beginPath();
-    dctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
-    dctx.fillStyle = '#fff';
-    dctx.fill();
-    dctx.strokeStyle = '#26a69a';
-    dctx.lineWidth = 2;
-    dctx.stroke();
-}
-
-const LINE_DASH_PATTERNS = { solid: [], dashed: [7, 5], dotted: [1.5, 4] };   // V22
-
-/* V24 修正：畫圖疊加層 canvas 跟整個 chart-container 一樣寬，但 Lightweight Charts 右側會保留
-   價格座標軸的寬度，實際K棒繪圖區比 canvas 窄。水平線原本畫到 canvas 最右邊，導致線條蓋到座標軸文字。
-   這裡改成畫到「繪圖區右緣」（canvas 寬度 - 價格軸寬度）為止。 */
-function getPlotRightEdge() {
-    try {
-        const w = mainChart.priceScale('right').width();
-        if (typeof w === 'number' && w > 0) return Math.max(0, drawCanvas.width - w);
-    } catch (e) {}
-    return drawCanvas.width;
-}
-
-function renderShape(d, isPreview, isSelected) {
-    dctx.save();
-    dctx.lineWidth = d.width || 1.5;
-    dctx.lineCap = (d.style === 'dotted') ? 'round' : 'butt';   // V22：點線用圓端才會像「點」
-    dctx.setLineDash(isPreview ? [5, 4] : (LINE_DASH_PATTERNS[d.style] || []));   // V22
-    dctx.font = '11px monospace';
-
-    if (d.type === 'hline') {
-        const y = mainSeries.priceToCoordinate(d.price);
-        if (y === null) { dctx.restore(); return; }
-        dctx.strokeStyle = hexToRgba(d.color, d.opacity ?? 1);   // V24：透明度
-        dctx.beginPath(); dctx.moveTo(0, y); dctx.lineTo(getPlotRightEdge(), y); dctx.stroke();   // V24：不畫進座標軸
-        dctx.fillStyle = d.color;
-        dctx.fillText(d.price.toFixed(2), 6, y - 5);
-        if (isSelected) drawHandle({ x: getPlotRightEdge() / 2, y: y });
-
-    } else if (d.type === 'trend') {
-        const a = toPixel(d.p1), b = toPixel(d.p2);
-        if (!a || !b) { dctx.restore(); return; }
-        dctx.strokeStyle = hexToRgba(d.color, d.opacity ?? 1);   // V24：透明度
-        dctx.beginPath(); dctx.moveTo(a.x, a.y); dctx.lineTo(b.x, b.y); dctx.stroke();
-        if (isSelected) { drawHandle(a); drawHandle(b); }
-        else {
-            dctx.fillStyle = d.color;
-            [a, b].forEach(p => { dctx.beginPath(); dctx.arc(p.x, p.y, 3, 0, Math.PI*2); dctx.fill(); });
-        }
-
-    } else if (d.type === 'rect') {
-        const a = toPixel(d.p1), b = toPixel(d.p2);
-        if (!a || !b) { dctx.restore(); return; }
-        const x = Math.min(a.x,b.x), y = Math.min(a.y,b.y), w = Math.abs(b.x-a.x), h = Math.abs(b.y-a.y);
-        dctx.strokeStyle = d.color;
-        if (d.fill !== false) {   // V24：背景是否顯示可勾選
-            dctx.fillStyle = hexToRgba(d.color, 0.12);
-            dctx.fillRect(x, y, w, h);
-        }
-        dctx.strokeRect(x, y, w, h);
-        if (isSelected) { drawHandle(a); drawHandle(b); }
-
-    } else if (d.type === 'fib') {
-        const a = toPixel(d.p1), b = toPixel(d.p2);
-        if (!a || !b) { dctx.restore(); return; }
-        const xL = Math.min(a.x, b.x), xR = Math.max(a.x, b.x);
-        const hi = Math.max(d.p1.price, d.p2.price), lo = Math.min(d.p1.price, d.p2.price);
-        const range = hi - lo;
-        FIB_ALL.forEach(lv => {
-            if (d.levels && !d.levels[lv]) return;   // 使用者取消勾選的係數不畫
-            const price = hi - range * lv;
-            const y = mainSeries.priceToCoordinate(price);
-            if (y === null) return;
-            const c = FIB_COLORS[lv] || d.color;
-            dctx.strokeStyle = c;
-            dctx.beginPath(); dctx.moveTo(xL, y); dctx.lineTo(xR, y); dctx.stroke();
-            dctx.fillStyle = c;
-            dctx.fillText((lv*100).toFixed(1) + '%  ' + price.toFixed(2), xR + 6, y + 4);
-        });
-        const yTop = mainSeries.priceToCoordinate(hi), yBot = mainSeries.priceToCoordinate(lo);
-        if (yTop !== null && yBot !== null) {
-            dctx.fillStyle = hexToRgba(d.color, 0.05);
-            dctx.fillRect(xL, yTop, xR - xL, yBot - yTop);
-        }
-        if (isSelected) { drawHandle(a); drawHandle(b); }
-    }
-    dctx.restore();
-}
+/* 相容舊呼叫點：這些都作用在主圖那一層 */
+function redrawDrawings() { drawLayers.main && drawLayers.main.redraw(); }
+function resizeDrawCanvas() { drawLayers.main && drawLayers.main.resize(); }
+function loadDrawings(symbol) { drawLayers.main && drawLayers.main.load(symbol); }
 
 function hexToRgba(hex, alpha) {
     const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
@@ -1664,11 +2337,11 @@ async function fetchCompareData(n) {
     const startDate = pastDate.toISOString().split('T')[0];
     try {
         const [infoRes, priceRes] = await Promise.all([
-            fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo&data_id=${symbol}`),
-            fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${symbol}&start_date=${startDate}`)
+            fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo&data_id=${symbol}`),
+            fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${symbol}&start_date=${startDate}`)
         ]);
-        const infoJson = await infoRes.json();
-        const priceJson = await priceRes.json();
+        const infoJson = infoRes;
+        const priceJson = priceRes;
         const stockName = (infoJson.data && infoJson.data.length > 0) ? infoJson.data[0].stock_name : '';
         document.getElementById(`compare-name-${n}`).textContent = stockName;
         document.getElementById(`compare-label-${n}`).textContent = stockName ? `股價走勢 - ${symbol} ${stockName}` : `股價走勢 - ${symbol}`;
@@ -1678,6 +2351,7 @@ async function fetchCompareData(n) {
             compareSeries[n].setData(compareData[n]);
             compareChart[n].timeScale().fitContent();
             updateCompareOhlcInfo(n, null);   // V29：預設顯示最新一根K棒的漲跌幅資訊
+            drawLayers['cmp'+n].load(symbol);   // V34：載入此標的在對比視窗畫過的圖形
             msgEl.style.display = 'none';
         } else {
             compareData[n] = [];   // V29
@@ -1698,6 +2372,7 @@ async function fetchCompareData(n) {
 async function fetchData() {
     const symbol = symbolInput.value.trim();
     if (!symbol) return alert("請輸入代碼");
+    const prevSymbol = currentSymbol, prevName = nameDisplay.textContent;   // V43：失敗時要還原，避免畫面說謊
     currentSymbol = symbol;   // V22
     nameDisplay.textContent = "";
     ['msg-chart','msg-table','msg-trend'].forEach(id => {
@@ -1708,14 +2383,13 @@ async function fetchData() {
     pastDate.setDate(pastDate.getDate() - 1095);
     const startDate = pastDate.toISOString().split('T')[0];
     try {
-        const [infoRes, priceRes, investorRes] = await Promise.all([
-            fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo&data_id=${symbol}`),
-            fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${symbol}&start_date=${startDate}`),
-            fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInstitutionalInvestorsBuySell&data_id=${symbol}&start_date=${startDate}`)
+        // V43：法人籌碼改成「切到那兩個頁籤時才抓」，換股時的請求數從 3 降到 2，減少被限流的機會
+        const [infoRes, priceRes] = await Promise.all([
+            fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo&data_id=${symbol}`),
+            fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${symbol}&start_date=${startDate}`)
         ]);
-        const infoJson = await infoRes.json();
-        const priceJson = await priceRes.json();
-        const investorJson = await investorRes.json();
+        const infoJson = infoRes;
+        const priceJson = priceRes;
 
         nameDisplay.textContent = (infoJson.data && infoJson.data.length > 0) ? infoJson.data[0].stock_name : symbol;
 
@@ -1736,20 +2410,65 @@ async function fetchData() {
             msgEl.style.display = 'block';
         }
 
-        if (investorJson.data && investorJson.data.length > 0) {
-            globalInvestorData = processInvestorData(investorJson.data);
+        // 籌碼資料延後到使用者真的切過去看時才抓（見 ensureInvestorData）
+        globalInvestorData = []; investorLoadedFor = null;
+        ['msg-table','msg-trend'].forEach(id => {
+            const el = document.getElementById(id);
+            el.textContent = '切換到此頁籤時載入'; el.style.display = 'block';
+        });
+        if (document.getElementById('view-table').classList.contains('active') ||
+            document.getElementById('view-trend').classList.contains('active')) ensureInvestorData();
+    } catch (err) {
+        /* V43：以前失敗時只印錯誤，currentSymbol 卻已經換成新代號，
+           結果畫面變成「標題寫著新股票、K線還是舊股票」的錯亂狀態。
+           這裡把代號與名稱還原成上一檔成功載入的，讓畫面至少誠實一致，
+           並明確告訴使用者是哪一檔載入失敗。 */
+        console.error("資料讀取失敗:", err);
+        currentSymbol = prevSymbol;
+        nameDisplay.textContent = prevName;
+        symbolInput.value = prevSymbol || symbol;
+        if (displayData.length) updateOhlcInfo(displayData[displayData.length - 1]);
+        renderChartSidebar();
+        const msgEl = document.getElementById('msg-chart');
+        if (msgEl) {
+            msgEl.textContent = `「${symbol}」載入失敗（可能是資料來源忙碌），請稍後再按「查詢」重試`;
+            msgEl.style.display = 'block';
+            setTimeout(() => { if (displayData.length) msgEl.style.display = 'none'; }, 4000);
+        }
+    }
+}
+
+/* V43：三大法人資料的延遲載入，同一檔只抓一次 */
+let investorLoadedFor = null, investorLoading = false;
+async function ensureInvestorData() {
+    if (!currentSymbol || investorLoading) return;
+    if (investorLoadedFor === currentSymbol) return;
+    investorLoading = true;
+    const pastDate = new Date(); pastDate.setDate(pastDate.getDate() - 1095);
+    const startDate = pastDate.toISOString().split('T')[0];
+    ['msg-table','msg-trend'].forEach(id => {
+        const el = document.getElementById(id);
+        el.textContent = '載入中...'; el.style.display = 'block';
+    });
+    try {
+        const json = await fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInstitutionalInvestorsBuySell&data_id=${currentSymbol}&start_date=${startDate}`);
+        if (json.data && json.data.length > 0) {
+            globalInvestorData = processInvestorData(json.data);
             renderTable(globalInvestorData);
             document.getElementById('msg-table').style.display = 'none';
             updateTrendCharts();
             document.getElementById('msg-trend').style.display = 'none';
+            investorLoadedFor = currentSymbol;
         } else {
-            document.getElementById('msg-table').textContent = "無籌碼資料";
-            document.getElementById('msg-trend').textContent = "無籌碼資料";
+            document.getElementById('msg-table').textContent = '無籌碼資料';
+            document.getElementById('msg-trend').textContent = '無籌碼資料';
         }
     } catch (err) {
-        console.error(err);
-        alert("資料讀取失敗: " + err.message);
-    }
+        console.error('籌碼資料讀取失敗:', err);
+        ['msg-table','msg-trend'].forEach(id => {
+            document.getElementById(id).textContent = '籌碼資料讀取失敗，請重新切換此頁籤重試';
+        });
+    } finally { investorLoading = false; }
 }
 
 function processInvestorData(rawData) {
@@ -1826,17 +2545,22 @@ function resizeAllCharts() {
         [1, 2].forEach(n => {
             const el = document.getElementById(`compare-chart-${n}`);
             compareChart[n].resize(el.clientWidth, el.clientHeight);
+            drawLayers['cmp'+n].resize();   // V34
         });
     }
 }
 
 function switchTab(tab) {
+    // V38：記住目前頁籤，重新整理後才能回到原本的分頁（用 sessionStorage，不會跨裝置同步）
+    try { sessionStorage.setItem('wr_activeTab', tab); } catch (e) {}
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.content-area').forEach(c => c.classList.remove('active'));
     document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
     document.getElementById(`view-${tab}`).classList.add('active');
+    if (tab === 'table' || tab === 'trend') ensureInvestorData();   // V43：需要時才抓籌碼資料
     if (tab === 'watchlist') {
         renderWatchlistTab();   // V27
+        refreshWatchlistQuotes(false);   // V36：進頁面時補抓報價（10分鐘內有快取就不重抓）
     } else if (tab === 'trend') {
         requestAnimationFrame(() => {
             trendKChart.resize(document.getElementById('trend-k-container').clientWidth, document.getElementById('trend-k-container').clientHeight);
@@ -1850,11 +2574,14 @@ function switchTab(tab) {
             mainChart.resize(c.clientWidth, c.clientHeight);
             resizeDrawCanvas();
         });
+        renderChartSidebar();                // V39
+        refreshWatchlistQuotes(false);       // V39：側欄報價（10分鐘快取內不會重抓）
     } else if (tab === 'compare') {   // V28
         requestAnimationFrame(() => {
             [1, 2].forEach(n => {
                 const el = document.getElementById(`compare-chart-${n}`);
                 compareChart[n].resize(el.clientWidth, el.clientHeight);
+                drawLayers['cmp'+n].resize();   // V34
             });
         });
         // 第一次切到這個頁籤才查詢，避免每次載入頁面都多打不需要的 API（節省 FinMind 流量限制）
@@ -1869,7 +2596,18 @@ symbolInput.addEventListener('keydown', e => {
 });
 
 initCharts();
+updateTokenStatus();        // V44
+applyChartSidebarState();   // V39：套用側欄收合記憶
+observeChartResize();       // V41：讓主圖持續跟著容器實際尺寸走
+renderChartSidebar();
 fetchData();
+refreshWatchlistQuotes(false);   // V39：開啟時先補側欄報價
+/* V38：重新整理（例如按下雲端同步的「重新整理套用」）後回到原本停留的頁籤 */
+(function restoreActiveTab() {
+    let tab = 'chart';
+    try { tab = sessionStorage.getItem('wr_activeTab') || 'chart'; } catch (e) {}
+    if (tab !== 'chart' && document.getElementById('view-' + tab)) switchTab(tab);
+})();
 initFirebaseSync();   // V25：若之前已設定過雲端同步，開啟頁面時就自動連線並抓一次最新資料
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && fbRoot) pullFromCloud(false);   // V25：切回分頁時順便檢查有沒有其他裝置的新資料
