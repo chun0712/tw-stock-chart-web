@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股全方位戰情室 (V46)</title>
+<title>台股全方位戰情室 (V53)</title>
 <style>
 body{margin:0;padding:20px;background:#121212;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;color:#ddd}
 .main-controls{margin-bottom:15px;display:flex;gap:10px;justify-content:center;align-items:center;background:#1e1e1e;padding:10px 20px;border-radius:8px;border:1px solid #333}
@@ -38,9 +38,12 @@ button.search-btn:hover{background:#c51162}
 .cs-pct{text-align:right;width:52px;flex-shrink:0}
 .cs-empty{color:#666;font-size:.75rem;padding:14px 10px;line-height:1.7;text-align:center}
 /* 收合把手 */
-.cs-toggle{position:absolute;top:10px;right:44px;z-index:26;width:30px;height:30px;background:rgba(30,30,30,.9);border:1px solid #555;border-radius:4px;color:#aaa;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.cs-toggle:hover{background:#26a69a;color:#fff;border-color:#26a69a}
-.cs-toggle svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
+/* V50：右下角工具鈕統一樣式（仿 TradingView：無外框、灰白字、hover 才有淡背景） */
+.corner-btn{width:22px;height:22px;background:transparent;border:none;border-radius:3px;color:#b2b5be;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;padding:0;line-height:1;transition:background .12s,color .12s}
+.corner-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+.corner-btn.on{color:#fff;background:rgba(255,255,255,.16)}
+.corner-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9}
 #view-trend{display:none;flex-direction:column}
 #view-trend.active{display:flex}
 /* V28：強弱對比（雙圖，各自獨立輸入標的） */
@@ -105,14 +108,39 @@ button.search-btn:hover{background:#c51162}
 .draw-canvas{position:absolute;top:0;left:0;z-index:15;pointer-events:none}
 .draw-canvas.drawing{pointer-events:auto;cursor:crosshair}
 /* 圖形屬性面板 */
-.shape-panel{position:absolute;top:86px;left:56px;z-index:40;background:rgba(30,30,30,.97);border:1px solid #555;border-radius:6px;padding:10px;display:none;flex-direction:column;gap:8px;font-size:.85rem;box-shadow:0 4px 12px rgba(0,0,0,.6);max-width:220px}
+.shape-panel{position:absolute;top:86px;left:56px;z-index:40;background:rgba(30,30,30,.97);border:1px solid #555;border-radius:6px;padding:10px;display:none;flex-direction:column;gap:8px;font-size:.85rem;box-shadow:0 4px 12px rgba(0,0,0,.6);max-width:280px;max-height:78vh;overflow-y:auto}
 .shape-panel.show{display:flex}
 .sp-row{display:flex;align-items:center;gap:8px}
 .sp-row label{color:#aaa;min-width:36px}
-.sp-fib-levels{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
-.sp-fib-levels label{display:flex;align-items:center;gap:4px;cursor:pointer;color:#ccc;font-family:monospace}
+/* V58：費波係數逐列可編輯（勾選 / 數值 / 顏色 / 線寬 / 刪除） */
+.sp-fib-levels{display:flex;flex-direction:column;gap:3px;max-height:210px;overflow-y:auto;padding-right:2px}
+.fib-row{display:flex;align-items:center;gap:4px}
+.fib-row input[type="checkbox"]{cursor:pointer;flex-shrink:0}
+.fib-row .fib-v{width:52px;padding:2px 4px;background:#333;border:1px solid #555;color:#fff;border-radius:3px;text-align:center;font-family:monospace;font-size:.78rem}
+.fib-row .fib-c{width:24px;height:20px;padding:0;border:none;background:none;cursor:pointer;flex-shrink:0}
+.fib-row .fib-w{width:38px;padding:2px 3px;background:#333;border:1px solid #555;color:#fff;border-radius:3px;text-align:center;font-size:.78rem}
+.fib-row .fib-del{background:transparent;border:none;color:#777;cursor:pointer;padding:0 3px;font-size:.85rem;flex-shrink:0}
+.fib-row .fib-del:hover{color:#f44336}
+.fib-add{background:#333;border:1px dashed #666;color:#aaa;border-radius:4px;padding:3px;cursor:pointer;font-size:.78rem;margin-top:2px}
+.fib-add:hover{background:#3d3d3d;color:#fff;border-color:#26a69a}
+.fib-head{display:flex;gap:4px;color:#777;font-size:.68rem;padding-left:16px}
+.fib-head span:nth-child(1){width:52px;text-align:center}
+.fib-head span:nth-child(2){width:24px;text-align:center}
+.fib-head span:nth-child(3){width:38px;text-align:center}
+/* V59：文字工具面板列 */
+.sp-textarea{width:100%;min-height:54px;padding:5px 6px;background:#1a1a1a;border:1px solid #555;color:#eee;border-radius:4px;font-size:.82rem;font-family:inherit;resize:vertical;box-sizing:border-box}
+/* V60：新增文字時直接在圖表上顯示可打字的游標（仿 TradingView），取代原本要先看面板才能打字的方式 */
+.text-edit-overlay{position:absolute;z-index:50;display:none;min-width:50px;min-height:1.4em;
+  border:1px dashed #26a69a;background:rgba(20,20,20,.55);outline:none;resize:none;overflow:hidden;
+  white-space:pre;padding:2px 4px;line-height:1.3;font-family:'Segoe UI','Microsoft JhengHei',sans-serif}
 .sp-del-btn{background:#442;background:#552233;border:1px solid #f50057;color:#ff8ab0;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:.8rem}
 .sp-del-btn:hover{background:#f50057;color:#fff}
+/* V56：屬性面板的 取消／確認（仿 TradingView，調整先預覽、按確認才儲存） */
+.sp-actions{display:flex;gap:6px;justify-content:flex-end;border-top:1px solid #444;padding-top:8px;margin-top:2px}
+.sp-actions button{padding:4px 14px;border-radius:4px;cursor:pointer;font-size:.8rem;border:1px solid #555;background:#333;color:#ccc}
+.sp-actions button:hover{background:#3d3d3d;color:#fff}
+.sp-actions button.confirm{background:#26a69a;border-color:#26a69a;color:#fff;font-weight:bold}
+.sp-actions button.confirm:hover{background:#2bbbad}
 .sp-width-input{width:44px;padding:3px;background:#333;border:1px solid #555;color:#fff;border-radius:4px;text-align:center}
 .sp-style-group{display:flex;gap:4px}
 .sp-style-btn{width:34px;height:26px;background:#333;border:1px solid #555;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
@@ -125,8 +153,11 @@ button.search-btn:hover{background:#c51162}
 .sp-opacity-row input[type="range"]{flex:1;accent-color:#26a69a}
 .sp-opacity-val{width:34px;text-align:right;color:#ccc;font-family:monospace;font-size:.8rem}
 /* 自動比例 A 按鈕 */
-.autoscale-btn{position:absolute;right:2px;bottom:2px;z-index:25;width:26px;height:26px;background:rgba(30,30,30,.9);border:1px solid #555;border-radius:4px;color:#aaa;cursor:pointer;font-weight:bold;font-size:14px;display:flex;align-items:center;justify-content:center}
-.autoscale-btn:hover{background:#26a69a;color:#fff;border-color:#26a69a}
+/* V49：價格軸控制鈕 A(自動縮放) / L(對數座標)，行為對齊 TradingView */
+/* 右下角：價格軸 A / L（垂直排列，貼齊座標軸下方） */
+.scale-btn-group{position:absolute;right:2px;bottom:2px;z-index:25;display:flex;flex-direction:column;gap:1px}
+/* 左下角一排：回到全部範圍 / 截圖 / 自選股欄（較少用，集中放在時間軸左下） */
+.bottom-tools{position:absolute;right:28px;bottom:2px;z-index:25;display:flex;align-items:center;gap:1px}
 /* V24：OHLC 資訊列 */
 .ohlc-info{position:absolute;top:46px;left:56px;z-index:24;background:rgba(20,20,20,.72);border-radius:4px;padding:4px 10px;font-size:.8rem;font-family:'Segoe UI Mono',monospace;display:flex;gap:12px;align-items:center;pointer-events:none;white-space:nowrap}
 .ohlc-info .oi-label{color:#888;margin-right:2px}
@@ -136,9 +167,7 @@ button.search-btn:hover{background:#c51162}
 .watchlist-star:hover{color:#ffca28}
 .watchlist-star.active{color:#ffca28}
 /* V24：截圖按鈕 */
-.screenshot-btn{position:absolute;top:10px;right:6px;z-index:25;width:30px;height:30px;background:rgba(30,30,30,.9);border:1px solid #555;border-radius:4px;color:#aaa;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.screenshot-btn:hover{background:#26a69a;color:#fff;border-color:#26a69a}
-.screenshot-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
+
 /* V24：均線 同步/週期 切換小按鈕 */
 .ma-sync-btn{background:#333;border:1px solid #555;color:#ccc;border-radius:3px;cursor:pointer;font-size:.75rem;padding:2px 8px;white-space:nowrap}
 .ma-sync-btn.active{background:#26a69a;color:#fff;border-color:#26a69a}
@@ -294,10 +323,11 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
     </div>
 
     <!-- 選取圖形後的屬性面板 -->
+    <textarea id="text-edit-overlay" class="text-edit-overlay" spellcheck="false"></textarea>
     <div class="shape-panel" id="shape-panel">
-        <div class="sp-row"><label>顏色</label><input type="color" id="sp-color" class="color-picker" onchange="spApply()"></div>
-        <div class="sp-row"><label>線寬</label><input type="number" id="sp-width" class="sp-width-input" min="1" max="6" step="0.5" onchange="spApply()"></div>
-        <div class="sp-row"><label>樣式</label>
+        <div class="sp-row"><label>顏色</label><input type="color" id="sp-color" class="color-picker" oninput="spApply()" onchange="spApply()"></div>
+        <div class="sp-row" id="sp-width-row"><label>線寬</label><input type="number" id="sp-width" class="sp-width-input" min="1" max="6" step="0.5" onchange="spApply()"></div>
+        <div class="sp-row" id="sp-style-row"><label>樣式</label>
             <div class="sp-style-group" id="sp-style-group">
                 <button type="button" class="sp-style-btn" data-style="solid" onclick="spSetStyle('solid')" title="實線">
                     <svg viewBox="0 0 22 8"><line x1="0" y1="4" x2="22" y2="4"/></svg></button>
@@ -307,9 +337,17 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
                     <svg viewBox="0 0 22 8"><line x1="0" y1="4" x2="22" y2="4" stroke-dasharray="1.5,3" stroke-linecap="round"/></svg></button>
             </div>
         </div>
+        <div class="sp-row" id="sp-text-row" style="display:none;flex-direction:column;align-items:flex-start">
+            <label style="margin-bottom:4px">文字內容</label>
+            <textarea class="sp-textarea" id="sp-text-input" oninput="spApply()" placeholder="輸入文字…"></textarea>
+        </div>
+        <div class="sp-row" id="sp-fontsize-row" style="display:none">
+            <label>字級</label><input type="number" id="sp-fontsize" class="sp-width-input" min="8" max="72" step="1" onchange="spApply()">
+        </div>
         <div class="sp-row sp-opacity-row" id="sp-opacity-row" style="display:none">
             <label>透明</label><input type="range" id="sp-opacity" min="10" max="100" step="5" oninput="spApply()"><span class="sp-opacity-val" id="sp-opacity-val">100%</span>
         </div>
+        <div class="sp-row" id="sp-bgcolor-row" style="display:none"><label>背景色</label><input type="color" id="sp-bgcolor" class="color-picker" oninput="spApply()" onchange="spApply()"></div>
         <label class="sp-check-row sp-row" id="sp-fill-row" style="display:none">
             <input type="checkbox" id="sp-fill" onchange="spApply()"><span>顯示背景</span>
         </label>
@@ -320,16 +358,27 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
         <div class="sp-row">
             <button class="sp-del-btn" onclick="deleteSelected()">刪除此圖形 (Del)</button>
         </div>
+        <div class="sp-actions">
+            <button onclick="spCancel()">取消</button>
+            <button class="confirm" onclick="spConfirm()">確認</button>
+        </div>
     </div>
 
     <div class="ohlc-info" id="ohlc-info"></div>
-    <button class="cs-toggle" onclick="toggleChartSidebar()" title="顯示/隱藏自選股欄">
-        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="15" y1="4" x2="15" y2="20"/></svg></button>
-    <button class="screenshot-btn" onclick="screenshotChart()" title="截圖並儲存">
-        <svg viewBox="0 0 24 24"><path d="M4 8 L7 8 L8.5 5.5 L15.5 5.5 L17 8 L20 8 A1 1 0 0 1 21 9 L21 18 A1 1 0 0 1 20 19 L4 19 A1 1 0 0 1 3 18 L3 9 A1 1 0 0 1 4 8 Z" stroke-linejoin="round"/><circle cx="12" cy="13.5" r="3.5"/></svg></button>
     <div id="chart-container"></div>
     <canvas class="draw-canvas" id="main-canvas"></canvas>
-    <button class="autoscale-btn" onclick="autoScalePrice()" title="自動調整K棒比例">A</button>
+    <div class="bottom-tools">
+        <button class="corner-btn" onclick="fitAllContent()" title="時間軸：顯示全部資料範圍">
+            <svg viewBox="0 0 24 24"><path d="M9 6 L4 12 L9 18 M15 6 L20 12 L15 18" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="corner-btn" onclick="screenshotChart()" title="截圖並儲存">
+            <svg viewBox="0 0 24 24"><path d="M4 8 L7 8 L8.5 5.5 L15.5 5.5 L17 8 L20 8 A1 1 0 0 1 21 9 L21 18 A1 1 0 0 1 20 19 L4 19 A1 1 0 0 1 3 18 L3 9 A1 1 0 0 1 4 8 Z" stroke-linejoin="round"/><circle cx="12" cy="13.5" r="3.2"/></svg></button>
+        <button class="corner-btn" onclick="toggleChartSidebar()" title="顯示/隱藏自選股欄">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="15" y1="4" x2="15" y2="20"/></svg></button>
+    </div>
+    <div class="scale-btn-group">
+        <button class="corner-btn on" id="btn-autoscale" onclick="toggleAutoScale()" title="自動縮放價格軸（拖動價格軸會自動關閉）">A</button>
+        <button class="corner-btn" id="btn-logscale" onclick="toggleLogScale()" title="對數座標">L</button>
+    </div>
     <div id="msg-chart" class="status-msg">請點擊查詢</div>
   </div>
   <div class="chart-sidebar" id="chart-sidebar">
@@ -531,6 +580,8 @@ const LS = {
     }
 };
 let trendKChart, trendKSeries, trendAlgoChart, trendAlgoSeries = {};
+/* V47：趨勢透視上下兩圖的縮放與十字游標同步（作法與強弱對比相同） */
+let trendKData = [], trendTotalData = [], trendSyncing = false;
 let compareChart = {}, compareSeries = {};   // V28：強弱對比 — {1:..., 2:...}
 let compareLoaded = { 1: false, 2: false };
 let compareData = { 1: [], 2: [] };   // V29：各窗格的K棒資料，供漲跌幅資訊列查表用
@@ -735,8 +786,14 @@ function liveApplyCloudKeys(keys) {
         if (v) { Object.assign(vwmaConfig, v); renderMaControls(); if (displayData.length) applyPriceData(false); }
     }
     if (has('wr_toolDefaults')) toolDefaults = Object.assign(toolDefaults, LS.get('wr_toolDefaults', {}));
-    if (has('wr_draw_') && drawLayers.main && currentSymbol) drawLayers.main.load(currentSymbol);
-    if (has('wr_drawcmp_')) [1, 2].forEach(n => { const L = drawLayers['cmp' + n]; if (L && L.symbol) L.load(L.symbol); });
+    /* V57：屬性面板開著（代表正在編輯、可能有還沒確認的調整）時，不要把圖形重新載入，
+       否則使用者手上的調整會被雲端版本蓋掉。等關閉面板後再套用。 */
+    const editing = shapePanel && shapePanel.classList.contains('show');
+    if (editing) { pendingCloudApply = true; }
+    else {
+        if (has('wr_draw_') && drawLayers.main && currentSymbol) drawLayers.main.load(currentSymbol);
+        if (has('wr_drawcmp_')) [1, 2].forEach(n => { const L = drawLayers['cmp' + n]; if (L && L.symbol) L.load(L.symbol); });
+    }
     showSyncToast();
 }
 function showSyncToast() {
@@ -962,6 +1019,33 @@ function initCharts() {
     trendAlgoSeries['Dealer'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#ff6d00', lineWidth: 2 });
     trendAlgoSeries['Total'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#eeeeee', lineWidth: 2 });
 
+    /* V47：趨勢透視上下同步 — 滾輪縮放/拖曳連動，十字游標對齊同一天。
+       下圖游標用「合計」線在那天的累計值定位，上圖用當天收盤價定位，
+       這樣兩條水平線各自落在自己圖表正確的數值上。 */
+    trendKChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+        if (range) trendAlgoChart.timeScale().setVisibleLogicalRange(range);
+    });
+    trendAlgoChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+        if (range) trendKChart.timeScale().setVisibleLogicalRange(range);
+    });
+    function syncTrendCrosshair(fromK, timeStr) {
+        if (fromK) {
+            const p = timeStr ? trendTotalData.find(d => d.time === timeStr) : null;
+            if (p) trendAlgoChart.setCrosshairPosition(p.value, p.time, trendAlgoSeries['Total']);
+            else trendAlgoChart.clearCrosshairPosition();
+        } else {
+            const b = timeStr ? trendKData.find(d => d.time === timeStr) : null;
+            if (b) trendKChart.setCrosshairPosition(b.close, b.time, trendKSeries);
+            else trendKChart.clearCrosshairPosition();
+        }
+    }
+    trendKChart.subscribeCrosshairMove(param => {
+        if (trendSyncing) return;   // 避免程式化設定游標時互相觸發造成無限迴圈
+        trendSyncing = true;
+        syncTrendCrosshair(true, normalizeChartTime(param.time));
+        trendSyncing = false;
+    });
+
     // V28：強弱對比 — 兩個各自獨立的K線圖，方便輸入不同標的（例如大盤 vs 個股）比對走勢
     [1, 2].forEach(n => {
         compareChart[n] = LightweightCharts.createChart(document.getElementById(`compare-chart-${n}`), kOpts);
@@ -1008,6 +1092,12 @@ function initCharts() {
     document.getElementById('start-date').value = past.toISOString().split('T')[0];
 
     trendAlgoChart.subscribeCrosshairMove(param => {
+        // V47：先把上圖的游標同步到同一天（即使沒有 tooltip 資料也要處理，游標才不會殘留）
+        if (!trendSyncing) {
+            trendSyncing = true;
+            syncTrendCrosshair(false, normalizeChartTime(param.time));
+            trendSyncing = false;
+        }
         if (!param.time || param.point === undefined || !param.point.x || !param.point.y) { tooltip.style.display = 'none'; return; }
         let dateStr = param.time;
         if (typeof dateStr === 'object') dateStr = `${dateStr.year}-${String(dateStr.month).padStart(2,'0')}-${String(dateStr.day).padStart(2,'0')}`;
@@ -1048,6 +1138,8 @@ function initCharts() {
     });
 
     initDrawingTools();
+    applyPriceScaleMode();        // V49：套用記住的 A / L 狀態
+    watchManualPriceScaleDrag();  // V49：拖動價格軸時自動關閉 A
 }
 
 /* V24：左上角 開高低收／成交量 資訊列 */
@@ -1575,13 +1667,93 @@ function calculateSMA(data, count) {
 }
 
 /* --- 自動比例 A 按鈕 (V22：強制重算，先關再開才會確實觸發) --- */
-function autoScalePrice() {
-    const ps = mainChart.priceScale('right');
-    ps.applyOptions({ autoScale: false });
-    requestAnimationFrame(() => {
-        ps.applyOptions({ autoScale: true });
-        redrawDrawings();
-    });
+/* ══════════ V49：價格軸控制（行為對齊 TradingView） ══════════
+   TradingView 把這件事拆成三個獨立操作，V48 我誤把它們混在一顆鈕裡：
+     A：只管「價格軸」自動縮放，而且是一個持續性的開關；手動拖動價格軸時會自動關閉。
+     L：價格軸切換成對數刻度（看長期走勢或高波動標的很實用）。
+     時間軸回到全部範圍：TradingView 是雙擊時間軸或用獨立按鈕，不歸 A 管。
+   這裡照這個分工重做，A 不再偷偷改動你的時間軸縮放。 */
+let autoScaleOn = LS.get('wr_autoScale', true);
+let logScaleOn  = LS.get('wr_logScale', false);
+
+function refreshScaleButtons() {
+    const a = document.getElementById('btn-autoscale');
+    const l = document.getElementById('btn-logscale');
+    if (a) { a.classList.toggle('on', autoScaleOn); a.title = autoScaleOn ? '自動縮放價格軸：開啟中（拖動價格軸會自動關閉）' : '自動縮放價格軸：已關閉'; }
+    if (l) { l.classList.toggle('on', logScaleOn); l.title = logScaleOn ? '對數座標：開啟中' : '對數座標：關閉中'; }
+}
+function applyPriceScaleMode() {
+    try {
+        // PriceScaleMode 是列舉：Normal=0, Logarithmic=1（若某版本未匯出，直接用數值也一樣有效）
+        const PSM = LightweightCharts.PriceScaleMode || { Normal: 0, Logarithmic: 1 };
+        mainChart.priceScale('right').applyOptions({
+            autoScale: autoScaleOn,
+            mode: logScaleOn ? PSM.Logarithmic : PSM.Normal
+        });
+    } catch (e) { console.error('價格軸設定失敗:', e); }
+    refreshScaleButtons();
+    requestAnimationFrame(() => redrawDrawings());
+}
+/* V51 修正：開著「L 對數座標」時換標的，K棒會整個不見。
+   原因是價格軸沿用上一檔的價格範圍沒有重算 —— 例如剛看完加權指數（四萬多點）再切到台積電
+   （兩千多元），座標軸還停在 18600~54000，台積電的K棒落在這個範圍下方所以看不到。
+   一般（線性）模式下自動縮放通常會自己跟上，但對數模式的刻度是重新換算過的，
+   資料範圍差距又大時就不會自動重算。這裡在每次載入新資料後主動觸發一次重算：
+   先把 autoScale 關掉再打開，強制圖表依照新資料重新計算價格範圍。 */
+/* V52 修正：V51 只在「A 還開著」時才重算，但只要手動拖過價格軸，A 就會自動關閉（V49 的設計），
+   之後換標的就再也不會重算，K棒又不見了 —— 你這次遇到的正是這個情況。
+   TradingView 的實際行為是：手動調整的比例只對「當下這一檔」有效，一旦換標的（或換週期），
+   價格軸一定重新貼合新資料，A 也會重新亮起。畢竟上一檔的價格範圍對新標的沒有意義。
+   所以這裡改成 force=true 時無條件重算，並把 A 恢復開啟。 */
+function forcePriceScaleRecalc(force) {
+    if (!force && !autoScaleOn) return;
+    if (force && !autoScaleOn) {
+        autoScaleOn = true;          // 換標的/換週期 → 自動縮放重新生效（與 TradingView 一致）
+        LS.set('wr_autoScale', true);
+        refreshScaleButtons();
+    }
+    try {
+        const ps = mainChart.priceScale('right');
+        ps.applyOptions({ autoScale: false });
+        requestAnimationFrame(() => {
+            ps.applyOptions({ autoScale: true });
+            requestAnimationFrame(() => redrawDrawings());
+        });
+    } catch (e) { console.error('價格軸重算失敗:', e); }
+}
+function toggleAutoScale() {
+    autoScaleOn = !autoScaleOn;
+    LS.set('wr_autoScale', autoScaleOn);
+    if (autoScaleOn) {
+        // 已經是 true 時要先關再開才會真的重算一次
+        try { mainChart.priceScale('right').applyOptions({ autoScale: false }); } catch (e) {}
+        requestAnimationFrame(applyPriceScaleMode);
+    } else applyPriceScaleMode();
+}
+function toggleLogScale() {
+    logScaleOn = !logScaleOn;
+    LS.set('wr_logScale', logScaleOn);
+    applyPriceScaleMode();
+}
+/* 時間軸：回到顯示全部資料（等同 TradingView 雙擊時間軸） */
+function fitAllContent() {
+    try { mainChart.timeScale().fitContent(); } catch (e) {}
+    requestAnimationFrame(() => redrawDrawings());
+}
+/* 使用者手動拖動價格軸時，TradingView 會自動把 A 熄滅，這裡照做 */
+function watchManualPriceScaleDrag() {
+    const el = document.getElementById('chart-container');
+    if (!el) return;
+    el.addEventListener('mousedown', e => {
+        if (!autoScaleOn) return;
+        const r = el.getBoundingClientRect();
+        const axisW = (() => { try { return mainChart.priceScale('right').width() || 60; } catch (x) { return 60; } })();
+        if (e.clientX - r.left >= r.width - axisW) {   // 按在價格軸範圍內 = 準備拖動刻度
+            autoScaleOn = false;
+            LS.set('wr_autoScale', false);
+            refreshScaleButtons();
+        }
+    }, true);
 }
 
 /* --- V22：週期切換 (日/週/月) --- */
@@ -1658,7 +1830,32 @@ function toggleRestoreAdjust() {
     if (globalPriceData.length) applyPriceData(true);
 }
 
+/* V53：換標的時保留你已經調好的縮放比例（與 TradingView 一致）。
+   先前是直接 fitContent，等於每次換股都把圖縮回「全部資料擠在一個畫面」，
+   你就得重新拉開。TradingView 的行為是：時間軸維持目前「看得到幾根K棒」的比例，
+   並對齊到最新一根；只有價格軸會依新標的重新貼合。
+   這裡在載入新資料前先記下目前可見的K棒根數，載入後再套用回去。 */
+function captureVisibleBarCount() {
+    try {
+        const r = mainChart.timeScale().getVisibleLogicalRange();
+        if (!r) return null;
+        const w = r.to - r.from;
+        return (Number.isFinite(w) && w > 1) ? w : null;
+    } catch (e) { return null; }
+}
+function restoreVisibleBarCount(width) {
+    try {
+        const n = displayData.length;
+        if (!n) return false;
+        if (!width || width >= n) { mainChart.timeScale().fitContent(); return true; }
+        // 對齊到最新一根K棒，右側留一點空白（跟原本 fitContent 後的視覺習慣接近）
+        mainChart.timeScale().setVisibleLogicalRange({ from: n - width, to: n });
+        return true;
+    } catch (e) { return false; }
+}
+
 function applyPriceData(fit = true) {
+    const keepBars = fit ? captureVisibleBarCount() : null;   // V53：先記住目前的縮放比例
     const cleaned = sanitizePriceData(globalPriceData);                                 // V27：先清洗原始日線資料
     const source = restoreAdjust ? computeAdjustedData(cleaned) : cleaned;               // V27：視「還原」開關決定是否做分割調整
     const agg = aggregateData(source, currentTF);
@@ -1688,7 +1885,11 @@ function applyPriceData(fit = true) {
         vwmaConfig.series.setData(calculateVWMA(displayData, vwmaConfig.period, vwmaConfig.source, vwmaConfig.offset));   // V28
         vwmaConfig.series.applyOptions({ color: vwmaConfig.color, visible: vwmaConfig.visible, lineWidth: vwmaConfig.width || 1 });
         msgEl.style.display = 'none';
-        if (fit) mainChart.timeScale().fitContent();
+        if (fit) {
+            // V53：有先前的縮放比例就沿用，第一次載入（沒有比例可沿用）才用 fitContent
+            if (!restoreVisibleBarCount(keepBars)) mainChart.timeScale().fitContent();
+        }
+        forcePriceScaleRecalc(fit);   // V52：換標的/換週期時無條件重算（背景同步更新則不動畫面）
         updateOhlcInfo(displayData[displayData.length - 1]);   // V24：預設顯示最新一根K棒
     } catch (err) {
         console.error('K線渲染失敗:', err);
@@ -1724,11 +1925,33 @@ const shapePanel = document.getElementById('shape-panel');
 let shapeIdSeq = 1;
 let drawClipboard = null;   // V33：Ctrl+C 複製的圖形（以序列化格式暫存）
 const FIB_ALL = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+/* V58：費波係數改成可自訂的清單 —— 每一列都能改數值、顏色、線寬，也能新增/刪除。
+   舊版是寫死的 7 個係數、顏色固定、無法調線寬。 */
+const FIB_DEFAULT_LEVELS = [
+    { v: 0,     on: true, color: '#787b86', width: 1 },
+    { v: 0.236, on: true, color: '#f23645', width: 1 },
+    { v: 0.382, on: true, color: '#ff9800', width: 1 },
+    { v: 0.5,   on: true, color: '#4caf50', width: 1 },
+    { v: 0.618, on: true, color: '#26a69a', width: 1 },
+    { v: 0.786, on: true, color: '#00bcd4', width: 1 },
+    { v: 1,     on: true, color: '#787b86', width: 1 }
+];
+function cloneFibLevels(src) {
+    return (src && src.length ? src : FIB_DEFAULT_LEVELS).map(l => ({ v: +l.v, on: l.on !== false, color: l.color || '#787b86', width: +l.width || 1 }));
+}
+/* 相容舊資料：舊的 levels 是 {係數: 勾選} 物件，轉成新的陣列格式 */
+function normalizeFibLevels(d) {
+    if (Array.isArray(d.fibLevels) && d.fibLevels.length) return d.fibLevels;
+    if (d.levels && typeof d.levels === 'object') {
+        d.fibLevels = FIB_DEFAULT_LEVELS.map(l => ({ ...l, on: d.levels[l.v] !== false }));
+    } else d.fibLevels = cloneFibLevels();
+    return d.fibLevels;
+}
 const FIB_COLORS = { 0:'#787b86', 0.236:'#f23645', 0.382:'#ff9800', 0.5:'#4caf50', 0.618:'#26a69a', 0.786:'#00bcd4', 1:'#787b86' };
 /* V22：各工具的預設顏色/線寬/樣式（實線/虛線/點線）會記住你上次的修改
    V24：水平線/趨勢線新增 opacity（透明度），矩形框新增 fill（是否顯示背景） */
 let toolDefaults = Object.assign(
-    { hline:{color:'#FFD700',width:1.5,style:'solid',opacity:1}, trend:{color:'#00B0FF',width:1.5,style:'solid',opacity:1}, rect:{color:'#AB47BC',width:1.5,style:'solid',fill:true}, fib:{color:'#2962FF',width:1.5,style:'solid'} },
+    { hline:{color:'#FFD700',width:1.5,style:'solid',opacity:1}, trend:{color:'#00B0FF',width:1.5,style:'solid',opacity:1}, rect:{color:'#AB47BC',width:1.5,style:'solid',fill:true}, fib:{color:'#2962FF',width:1.5,style:'solid'}, measure:{color:'#2962FF',width:1.5,style:'solid',fill:true,bgColor:'#2962FF'}, text:{color:'#FFFFFF',fontSize:14} },
     LS.get('wr_toolDefaults', {})
 );
 Object.values(toolDefaults).forEach(d => { if (!d.style) d.style = 'solid'; });   // 相容舊版已儲存的設定
@@ -1768,6 +1991,10 @@ function buildDrawToolbarHTML(key) {
             <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12"/></svg></button>
         <button class="draw-tool-btn" data-tool="fib" onclick="${call}.setTool('fib')" title="費波那契回撤">
             <svg viewBox="0 0 24 24"><line x1="3" y1="5" x2="21" y2="5"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="3" y1="20" x2="21" y2="20"/></svg></button>
+        <button class="draw-tool-btn" data-tool="measure" onclick="${call}.setTool('measure')" title="區間測量：拉出 A→B 顯示漲跌幅%、價差與K棒根數">
+            <svg viewBox="0 0 24 24"><path d="M4 18 L20 18 M12 4 L12 18 M8.5 7.5 L12 4 L15.5 7.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 21 L4 15 M20 21 L20 15" stroke-linecap="round"/></svg></button>
+        <button class="draw-tool-btn" data-tool="text" onclick="${call}.setTool('text')" title="新增文字：點一下放置，可調整內容/顏色/大小">
+            <svg viewBox="0 0 24 24"><path d="M4 5 H20 M12 5 V19" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button class="draw-tool-btn danger" onclick="${call}.clear()" title="清除全部圖形">
             <svg viewBox="0 0 24 24"><path d="M5 7 H19 M9 7 V4 H15 V7 M7 7 L8 20 H16 L17 7"/></svg></button>
     </div>`;
@@ -1859,28 +2086,42 @@ function createDrawingLayer(cfg) {
     L.serializeShape = function (d) {
         const s = { type: d.type, color: d.color, width: d.width, style: d.style || 'solid' };
         if (d.type === 'hline') { s.price = d.price; s.opacity = d.opacity ?? 1; }
+        else if (d.type === 'text') {
+            s.p1 = L.serializePoint(d.p1);
+            if (!s.p1) return null;
+            s.text = d.text; s.fontSize = d.fontSize;
+        }
         else {
             s.p1 = L.serializePoint(d.p1);
             s.p2 = L.serializePoint(d.p2);
             if (!s.p1 || !s.p2) return null;
             if (d.type === 'trend') s.opacity = d.opacity ?? 1;
             if (d.type === 'rect') s.fill = d.fill !== false;
+            if (d.type === 'measure') { s.fill = d.fill !== false; s.bgColor = d.bgColor || d.color; }
         }
-        if (d.levels) s.levels = d.levels;
+        if (d.fibLevels) s.fibLevels = d.fibLevels;   // V58
+        if (d.levels) s.levels = d.levels;               // 舊版相容
         return s;
     };
     L.hydrateShape = function (s) {
         if (!s || !s.type) return null;
         const d = { id: shapeIdSeq++, type: s.type, color: s.color || '#FFD700', width: s.width || 1.5, style: s.style || 'solid' };
         if (s.type === 'hline') { d.price = s.price; d.opacity = s.opacity ?? 1; }
+        else if (s.type === 'text') {
+            if (!s.p1) return null;
+            d.p1 = L.hydratePoint(s.p1);
+            d.text = s.text || ''; d.fontSize = s.fontSize || 14;
+        }
         else {
             if (!s.p1 || !s.p2) return null;
             d.p1 = L.hydratePoint(s.p1);
             d.p2 = L.hydratePoint(s.p2);
             if (s.type === 'trend') d.opacity = s.opacity ?? 1;
             if (s.type === 'rect') d.fill = s.fill !== false;
+            if (s.type === 'measure') { d.fill = s.fill !== false; d.bgColor = s.bgColor || d.color; }
         }
-        if (s.levels) d.levels = s.levels;
+        if (s.fibLevels) d.fibLevels = cloneFibLevels(s.fibLevels);   // V58
+        else if (s.levels) d.levels = s.levels;                        // 舊版相容
         return d;
     };
     L.persist = function () {
@@ -1939,6 +2180,14 @@ function createDrawingLayer(cfg) {
             if (d.type === 'hline') {
                 const ly = L.series.priceToCoordinate(d.price);
                 if (ly !== null && Math.abs(y - ly) < TOL) return { id: d.id, part: 'body' };
+            } else if (d.type === 'text') {
+                const p = L.toPixel(d.p1);
+                if (!p) continue;
+                dctx.font = `${d.fontSize || 14}px "Segoe UI", sans-serif`;
+                const lines = (d.text || '').split('\n');
+                const tw = Math.max(...lines.map(ln => dctx.measureText(ln).width), 10);
+                const th = (d.fontSize || 14) * 1.3 * lines.length;
+                if (x >= p.x - TOL && x <= p.x + tw + TOL && y >= p.y - TOL && y <= p.y + th + TOL) return { id: d.id, part: 'body' };
             } else {
                 const a = L.toPixel(d.p1), b = L.toPixel(d.p2);
                 if (!a || !b) continue;
@@ -1946,7 +2195,7 @@ function createDrawingLayer(cfg) {
                 if (Math.hypot(x - b.x, y - b.y) < TOL) return { id: d.id, part: 'p2' };
                 if (d.type === 'trend') {
                     if (distToSeg(x, y, a.x, a.y, b.x, b.y) < TOL) return { id: d.id, part: 'body' };
-                } else if (d.type === 'rect') {
+                } else if (d.type === 'rect' || d.type === 'measure') {
                     const xL = Math.min(a.x,b.x), xR = Math.max(a.x,b.x), yT = Math.min(a.y,b.y), yB = Math.max(a.y,b.y);
                     const onEdge = (x >= xL - TOL && x <= xR + TOL && y >= yT - TOL && y <= yB + TOL) &&
                                    (Math.abs(x - xL) < TOL || Math.abs(x - xR) < TOL || Math.abs(y - yT) < TOL || Math.abs(y - yB) < TOL);
@@ -1956,9 +2205,9 @@ function createDrawingLayer(cfg) {
                     const xL = Math.min(a.x, b.x), xR = Math.max(a.x, b.x);
                     if (x >= xL - TOL && x <= xR + TOL) {
                         const hi = Math.max(d.p1.price, d.p2.price), lo = Math.min(d.p1.price, d.p2.price);
-                        for (const lv of FIB_ALL) {
-                            if (d.levels && !d.levels[lv]) continue;
-                            const ly = L.series.priceToCoordinate(hi - (hi - lo) * lv);
+                        for (const lvl of normalizeFibLevels(d)) {
+                            if (!lvl.on) continue;
+                            const ly = L.series.priceToCoordinate(hi - (hi - lo) * lvl.v);
                             if (ly !== null && Math.abs(y - ly) < TOL) return { id: d.id, part: 'body' };
                         }
                     }
@@ -1982,6 +2231,32 @@ function createDrawingLayer(cfg) {
         dctx.fillStyle = '#fff'; dctx.fill();
         dctx.strokeStyle = '#26a69a'; dctx.lineWidth = 2; dctx.stroke();
     };
+    /* V59：把顏色換算成對比夠高的文字色（淺底用黑字、深底用白字），供 hline 座標軸徽章使用 */
+    function contrastTextColor(hex) {
+        hex = (hex || '#000000').replace('#', '');
+        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+        const r = parseInt(hex.substr(0, 2), 16) || 0, g = parseInt(hex.substr(2, 2), 16) || 0, b = parseInt(hex.substr(4, 2), 16) || 0;
+        return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#000000' : '#ffffff';
+    }
+    /* V59：水平線的價格徽章畫在Y軸上（跟收盤價徽章同一個位置），要在裁切範圍「之外」畫，
+       所以另外獨立一個函式，在 L.redraw() 裡於 restore() 之後才呼叫。 */
+    L.renderHlineBadge = function (d) {
+        const y = L.series.priceToCoordinate(d.price);
+        if (y === null || y < -20 || y > canvas.height + 20) return;
+        const plotEdge = L.getPlotRightEdge();
+        const axisW = canvas.width - plotEdge;
+        if (axisW < 20) return;   // 座標軸寬度還沒量出來時先不畫，避免擠成一團
+        const h = 18;
+        dctx.save();
+        dctx.fillStyle = d.color;
+        dctx.fillRect(plotEdge, y - h / 2, axisW, h);
+        dctx.fillStyle = contrastTextColor(d.color);
+        dctx.font = 'bold 11px "Segoe UI", monospace';
+        dctx.textBaseline = 'middle';
+        dctx.textAlign = 'center';
+        dctx.fillText(d.price.toFixed(2), plotEdge + axisW / 2, y + 1);
+        dctx.restore();
+    };
     L.renderShape = function (d, isPreview, isSelected) {
         dctx.save();
         dctx.lineWidth = d.width || 1.5;
@@ -1994,9 +2269,27 @@ function createDrawingLayer(cfg) {
             if (y === null) { dctx.restore(); return; }
             dctx.strokeStyle = hexToRgba(d.color, d.opacity ?? 1);
             dctx.beginPath(); dctx.moveTo(0, y); dctx.lineTo(L.getPlotRightEdge(), y); dctx.stroke();
-            dctx.fillStyle = d.color;
-            dctx.fillText(d.price.toFixed(2), 6, y - 5);
+            // V59：價格數字改到Y軸徽章顯示（見 L.renderHlineBadge），這裡不再畫死在左邊的文字
             if (isSelected) L.drawHandle({ x: L.getPlotRightEdge() / 2, y: y });
+
+        } else if (d.type === 'text') {
+            /* V59：新增文字工具 — 可調整內容/顏色/字級，拖曳可移動 */
+            const p = L.toPixel(d.p1);
+            if (!p) { dctx.restore(); return; }
+            dctx.setLineDash([]);
+            const fontSize = d.fontSize || 14;
+            dctx.font = `${fontSize}px "Segoe UI", "Microsoft JhengHei", sans-serif`;
+            dctx.fillStyle = d.color;
+            dctx.textBaseline = 'top';
+            const lines = (d.text || '').split('\n');
+            lines.forEach((line, i) => dctx.fillText(line, p.x, p.y + i * fontSize * 1.3));
+            if (isSelected) {
+                const tw = Math.max(...lines.map(ln => dctx.measureText(ln).width), 10);
+                const th = fontSize * 1.3 * lines.length;
+                dctx.strokeStyle = '#26a69a'; dctx.lineWidth = 1; dctx.setLineDash([3, 3]);
+                dctx.strokeRect(p.x - 3, p.y - 3, tw + 6, th + 6);
+                L.drawHandle(p);
+            }
 
         } else if (d.type === 'trend') {
             const a = L.toPixel(d.p1), b = L.toPixel(d.p2);
@@ -2008,6 +2301,48 @@ function createDrawingLayer(cfg) {
                 dctx.fillStyle = d.color;
                 [a, b].forEach(p => { dctx.beginPath(); dctx.arc(p.x, p.y, 3, 0, Math.PI*2); dctx.fill(); });
             }
+
+        } else if (d.type === 'measure') {
+            /* V54：區間測量 — 顯示 A→B 的價差與漲跌幅%。
+               V55 修正：先前顏色寫死成「漲紅跌綠」，導致屬性面板調的顏色/線寬/樣式通通沒作用。
+               改成一律使用使用者設定的顏色與線寬，背景另有獨立的顏色與開關。 */
+            const a = L.toPixel(d.p1), b = L.toPixel(d.p2);
+            if (!a || !b) { dctx.restore(); return; }
+            const up = d.p2.price >= d.p1.price;
+            const col = d.color;                       // V55：使用者設定的顏色
+            const bg = d.bgColor || d.color;
+            const xL = Math.min(a.x,b.x), xR = Math.max(a.x,b.x);
+            const yT = Math.min(a.y,b.y), yB = Math.max(a.y,b.y);
+            if (d.fill !== false) {
+                dctx.fillStyle = hexToRgba(bg, 0.18);
+                dctx.fillRect(xL, yT, xR - xL, yB - yT);
+            }
+            dctx.strokeStyle = col; dctx.lineWidth = d.width || 1.5;
+            dctx.strokeRect(xL, yT, xR - xL, yB - yT);
+            const midX = (xL + xR) / 2;
+            dctx.beginPath(); dctx.moveTo(midX, a.y); dctx.lineTo(midX, b.y); dctx.stroke();
+            dctx.setLineDash([]);                      // 箭頭一律實心，不跟著虛線樣式
+            const ah = 7, dir = up ? 1 : -1;
+            dctx.beginPath();
+            dctx.moveTo(midX, b.y);
+            dctx.lineTo(midX - 5, b.y + ah * dir);
+            dctx.lineTo(midX + 5, b.y + ah * dir);
+            dctx.closePath(); dctx.fillStyle = col; dctx.fill();
+            const diff = d.p2.price - d.p1.price;
+            const pct = d.p1.price ? (diff / d.p1.price) * 100 : 0;
+            const txt = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)}  (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`;
+            dctx.font = 'bold 12px "Segoe UI", monospace';
+            const tw = dctx.measureText(txt).width, pad = 7, bh = 21;
+            let bx = midX - (tw + pad * 2) / 2;
+            let by = up ? yT - bh - 6 : yB + 6;
+            bx = Math.max(2, Math.min(bx, L.getPlotRightEdge() - tw - pad * 2 - 2));
+            if (by < 2) by = yB + 6;
+            if (by + bh > canvas.height - 2) by = yT - bh - 6;
+            dctx.fillStyle = col;
+            dctx.fillRect(bx, by, tw + pad * 2, bh);
+            dctx.fillStyle = '#fff';
+            dctx.fillText(txt, bx + pad, by + 15);
+            if (isSelected) { L.drawHandle(a); L.drawHandle(b); }
 
         } else if (d.type === 'rect') {
             const a = L.toPixel(d.p1), b = L.toPixel(d.p2);
@@ -2024,16 +2359,17 @@ function createDrawingLayer(cfg) {
             const xL = Math.min(a.x, b.x), xR = Math.max(a.x, b.x);
             const hi = Math.max(d.p1.price, d.p2.price), lo = Math.min(d.p1.price, d.p2.price);
             const range = hi - lo;
-            FIB_ALL.forEach(lv => {
-                if (d.levels && !d.levels[lv]) return;
-                const price = hi - range * lv;
+            normalizeFibLevels(d).forEach(lvl => {
+                if (!lvl.on) return;
+                const price = hi - range * lvl.v;
                 const y = L.series.priceToCoordinate(price);
                 if (y === null) return;
-                const c = FIB_COLORS[lv] || d.color;
+                const c = lvl.color || d.color;              // V58：每一列各自的顏色
                 dctx.strokeStyle = c;
+                dctx.lineWidth = lvl.width || 1;             // V58：每一列各自的線寬
                 dctx.beginPath(); dctx.moveTo(xL, y); dctx.lineTo(xR, y); dctx.stroke();
                 dctx.fillStyle = c;
-                dctx.fillText((lv*100).toFixed(1) + '%  ' + price.toFixed(2), xR + 6, y + 4);
+                dctx.fillText((lvl.v*100).toFixed(1) + '%  ' + price.toFixed(2), xR + 6, y + 4);
             });
             const yTop = L.series.priceToCoordinate(hi), yBot = L.series.priceToCoordinate(lo);
             if (yTop !== null && yBot !== null) {
@@ -2059,10 +2395,12 @@ function createDrawingLayer(cfg) {
         if (L.activeTool && L.activeTool !== 'hline' && L.pendingPoint && L.previewPoint) {
             const def = toolDefaults[L.activeTool] || { color: '#FFD700', width: 1.5 };
             const preview = { type: L.activeTool, p1: L.pendingPoint, p2: L.previewPoint, color: def.color, width: def.width, fill: def.fill };
-            if (L.activeTool === 'fib') { preview.levels = {}; FIB_ALL.forEach(lv => preview.levels[lv] = true); }
+            if (L.activeTool === 'fib') preview.fibLevels = cloneFibLevels(toolDefaults.fib && toolDefaults.fib.fibLevels);   // V58
             L.renderShape(preview, true, false);
         }
         dctx.restore();
+        // V59：水平線的價格徽章要畫在座標軸上，必須在裁切範圍「之外」，所以放在 restore() 之後
+        L.drawings.forEach(d => { if (d.type === 'hline') L.renderHlineBadge(d); });
     };
 
     /* ---- 事件 ---- */
@@ -2073,6 +2411,20 @@ function createDrawingLayer(cfg) {
         const pt = L.toChartPoint(e.clientX - r.left, e.clientY - r.top);
         if (!pt) return;
         activeDrawLayer = L;
+        if (L.activeTool === 'text') {
+            // V60 修正：mousedown 事件的預設行為會在所有監聽器跑完後，由瀏覽器自己決定焦點該給誰，
+            // 這通常會把我們剛剛用 .focus() 設定好的游標「搶回去」，導致游標一放上去馬上又消失。
+            // 用 preventDefault() 擋掉這個預設行為，我們手動設定的焦點才留得住。
+            e.preventDefault();
+            const def = toolDefaults.text || { color: '#FFFFFF', fontSize: 14 };
+            const s = { id: shapeIdSeq++, type: 'text', p1: pt, text: '', color: def.color, fontSize: def.fontSize };
+            L.drawings.push(s);
+            L.selectedId = s.id;
+            L.setTool(null);
+            L.redraw();
+            openTextEditOverlay(L, s);
+            return;
+        }
         if (L.activeTool === 'hline') {
             const def = toolDefaults.hline;
             L.drawings.push({ id: shapeIdSeq++, type: 'hline', price: pt.price, color: def.color, width: def.width, style: def.style, opacity: def.opacity ?? 1 });
@@ -2085,7 +2437,8 @@ function createDrawingLayer(cfg) {
             const s = { id: shapeIdSeq++, type: L.activeTool, p1: L.pendingPoint, p2: pt, color: def.color, width: def.width, style: def.style };
             if (L.activeTool === 'trend') s.opacity = def.opacity ?? 1;
             if (L.activeTool === 'rect') s.fill = def.fill !== false;
-            if (L.activeTool === 'fib') { s.levels = {}; FIB_ALL.forEach(lv => s.levels[lv] = true); }
+            if (L.activeTool === 'measure') { s.fill = def.fill !== false; s.bgColor = def.bgColor || def.color; }
+            if (L.activeTool === 'fib') s.fibLevels = cloneFibLevels(toolDefaults.fib && toolDefaults.fib.fibLevels);   // V58
             L.drawings.push(s);
             L.persist();
             L.pendingPoint = null; L.previewPoint = null; L.setTool(null);
@@ -2130,9 +2483,9 @@ function createDrawingLayer(cfg) {
                 showShapePanel(shape);
                 L.redraw();
             } else if (L.selectedId !== null) {
-                L.selectedId = null;
-                hideShapePanel();
-                L.redraw();
+                // V56：點到空白處視同「確認」，避免調整完點別的地方就默默不見
+                if (shapePanel.classList.contains('show')) spConfirm();
+                else { L.selectedId = null; hideShapePanel(); L.redraw(); }
             }
         }, true);
 
@@ -2148,6 +2501,8 @@ function createDrawingLayer(cfg) {
             const o = L.dragInfo.orig;
             if (s.type === 'hline') {
                 s.price = o.price + dP;
+            } else if (s.type === 'text') {
+                s.p1 = { logical: o.p1.logical + dLg, price: o.p1.price + dP };
             } else if (L.dragInfo.part === 'p1') {
                 s.p1 = { logical: o.p1.logical + dLg, price: o.p1.price + dP };
             } else if (L.dragInfo.part === 'p2') {
@@ -2244,30 +2599,138 @@ function initDrawingTools() {
 }
 
 /* ---- 屬性面板（三層共用同一個面板，作用在 activeDrawLayer 上） ---- */
-function showShapePanel(s) {
+/* V56：開啟面板時先備份原始設定，按「取消」才有東西可以還原 */
+let spSnapshot = null, spSnapshotLayer = null, spSnapshotId = null, spPendingDefaults = null;
+let spIsNewShape = false;   // V59：這次面板是不是「剛建立、還沒按過確認」的圖形（目前只有文字工具會這樣）
+/* ══════════ V60：新增文字時直接在圖表上打字，有真正的游標（仿 TradingView） ══════════
+   canvas 畫出來的文字只是像素，本身不會有游標，所以打字這件事一定要交給一個真正的
+   HTML 輸入元件。做法是疊一個透明的 <textarea> 蓋在圖表正上方、對齊剛剛點擊的位置，
+   打完字、點掉別的地方或按 Esc 才把內容烤回 canvas；純輸入的過程完全用瀏覽器原生的
+   文字游標，體驗上就跟在圖表上直接打字一樣。 */
+const textEditEl = document.getElementById('text-edit-overlay');
+let textEditShape = null, textEditLayer = null;
+function autoGrowTextEditEl() {
+    textEditEl.style.height = 'auto';
+    textEditEl.style.width = 'auto';
+    textEditEl.style.height = textEditEl.scrollHeight + 'px';
+    textEditEl.style.width = Math.max(50, textEditEl.scrollWidth + 8) + 'px';
+}
+function openTextEditOverlay(L, s) {
+    textEditShape = s; textEditLayer = L;
+    const p = L.toPixel(s.p1);
+    if (!p) return;
+    const parent = L.container.parentNode;
+    if (textEditEl.parentNode !== parent) parent.appendChild(textEditEl);
+    textEditEl.style.left = p.x + 'px';
+    textEditEl.style.top = p.y + 'px';
+    textEditEl.style.color = s.color;
+    textEditEl.style.fontSize = (s.fontSize || 14) + 'px';
+    textEditEl.value = s.text || '';
+    textEditEl.style.display = 'block';
+    autoGrowTextEditEl();
+    textEditEl.focus();
+    textEditEl.setSelectionRange(textEditEl.value.length, textEditEl.value.length);
+}
+function commitTextEdit() {
+    if (!textEditShape) return;
+    const s = textEditShape, L = textEditLayer;
+    const text = textEditEl.value;
+    textEditEl.style.display = 'none';
+    textEditShape = null; textEditLayer = null;
+    if (!text.trim()) {
+        // 沒打任何內容就點掉，這個文字圖形不會留下來
+        L.drawings = L.drawings.filter(d => d.id !== s.id);
+    } else {
+        s.text = text;
+        toolDefaults.text = Object.assign({}, toolDefaults.text, { color: s.color, fontSize: s.fontSize });
+        persistToolDefaults();
+        L.persist();
+    }
+    L.selectedId = null;
+    L.redraw();
+}
+function cancelTextEdit() {
+    if (!textEditShape) return;
+    const s = textEditShape, L = textEditLayer;
+    textEditEl.style.display = 'none';
+    textEditShape = null; textEditLayer = null;
+    L.drawings = L.drawings.filter(d => d.id !== s.id);   // Esc 取消：剛放置的文字直接撤銷
+    L.selectedId = null;
+    L.redraw();
+}
+textEditEl.addEventListener('input', autoGrowTextEditEl);
+textEditEl.addEventListener('blur', commitTextEdit);
+textEditEl.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); cancelTextEdit(); }
+    e.stopPropagation();   // 打字時（含 Delete/Backspace）不要被全域的圖形刪除快捷鍵攔截
+});
+
+function snapshotShape(s) {
+    return JSON.parse(JSON.stringify({
+        color: s.color, width: s.width, style: s.style,
+        opacity: s.opacity, fill: s.fill, bgColor: s.bgColor,
+        levels: s.levels ? Object.assign({}, s.levels) : undefined,
+        fibLevels: s.fibLevels ? cloneFibLevels(s.fibLevels) : undefined,   // V58
+        text: s.text, fontSize: s.fontSize                                  // V59
+    }));
+}
+function showShapePanel(s, isNew) {
+    spSnapshot = snapshotShape(s);
+    spSnapshotLayer = activeDrawLayer;
+    spSnapshotId = s.id;
+    spIsNewShape = !!isNew;
     document.getElementById('sp-color').value = s.color;
     document.getElementById('sp-width').value = s.width;
     updateStyleButtons(s.style || 'solid');
     const fibRow = document.getElementById('sp-fib-row');
     const opacityRow = document.getElementById('sp-opacity-row');
     const fillRow = document.getElementById('sp-fill-row');
+    // V59：文字工具沒有線寬/樣式的概念，改顯示文字內容與字級
+    const widthRow = document.getElementById('sp-width-row');
+    const styleRow = document.getElementById('sp-style-row');
+    const textRow = document.getElementById('sp-text-row');
+    const fontRow = document.getElementById('sp-fontsize-row');
+    if (s.type === 'text') {
+        widthRow.style.display = 'none';
+        styleRow.style.display = 'none';
+        textRow.style.display = 'flex';
+        fontRow.style.display = 'flex';
+        document.getElementById('sp-text-input').value = s.text || '';
+        document.getElementById('sp-fontsize').value = s.fontSize || 14;
+    } else {
+        widthRow.style.display = 'flex';
+        styleRow.style.display = 'flex';
+        textRow.style.display = 'none';
+        fontRow.style.display = 'none';
+    }
     if (s.type === 'hline' || s.type === 'trend') {
         opacityRow.style.display = 'flex';
         const pct = Math.round((s.opacity ?? 1) * 100);
         document.getElementById('sp-opacity').value = pct;
         document.getElementById('sp-opacity-val').textContent = pct + '%';
     } else opacityRow.style.display = 'none';
-    if (s.type === 'rect') {
+    // V55：矩形與區間測量都可調整背景（顯示與否 + 背景顏色）
+    const bgRow = document.getElementById('sp-bgcolor-row');
+    if (s.type === 'rect' || s.type === 'measure') {
         fillRow.style.display = 'flex';
         document.getElementById('sp-fill').checked = s.fill !== false;
-    } else fillRow.style.display = 'none';
+        bgRow.style.display = 'flex';
+        document.getElementById('sp-bgcolor').value = s.bgColor || s.color;
+    } else { fillRow.style.display = 'none'; bgRow.style.display = 'none'; }
     if (s.type === 'fib') {
         fibRow.style.display = 'flex';
         let html = '';
-        FIB_ALL.forEach(lv => {
-            const checked = s.levels[lv] ? 'checked' : '';
-            html += `<label><input type="checkbox" data-lv="${lv}" ${checked} onchange="spApply()"> ${(lv*100).toFixed(1)}%</label>`;
+        html = `<div class="fib-head"><span>係數</span><span>色</span><span>粗細</span></div>`;
+        normalizeFibLevels(s).forEach((lvl, i) => {
+            html += `<div class="fib-row">
+                <input type="checkbox" data-i="${i}" ${lvl.on ? 'checked' : ''} onchange="spApply()">
+                <input type="number" class="fib-v" data-i="${i}" value="${lvl.v}" step="0.001" onchange="spApply()">
+                <input type="color" class="fib-c" data-i="${i}" value="${lvl.color}" oninput="spApply()" onchange="spApply()">
+                <input type="number" class="fib-w" data-i="${i}" value="${lvl.width}" min="1" max="6" step="0.5" onchange="spApply()">
+                <button class="fib-del" onclick="spFibRemove(${i})" title="刪除這一列">✕</button>
+            </div>`;
         });
+        html += `<button class="fib-add" onclick="spFibAdd()">＋ 新增係數</button>`;
         document.getElementById('sp-fib-levels').innerHTML = html;
     } else fibRow.style.display = 'none';
     shapePanel.classList.add('show');
@@ -2299,15 +2762,107 @@ function spApply() {
         document.getElementById('sp-opacity-val').textContent = pct + '%';
         def.opacity = s.opacity;
     }
-    if (s.type === 'rect') { s.fill = document.getElementById('sp-fill').checked; def.fill = s.fill; }
-    if (s.type === 'fib') {
-        document.querySelectorAll('#sp-fib-levels input').forEach(cb => {
-            s.levels[parseFloat(cb.dataset.lv)] = cb.checked;
-        });
+    if (s.type === 'rect' || s.type === 'measure') {
+        s.fill = document.getElementById('sp-fill').checked; def.fill = s.fill;
+        s.bgColor = document.getElementById('sp-bgcolor').value; def.bgColor = s.bgColor;
     }
-    toolDefaults[s.type] = Object.assign({}, toolDefaults[s.type], def);
-    persistToolDefaults();
-    L.persist(); L.redraw();
+    if (s.type === 'fib') {
+        const rows = document.querySelectorAll('#sp-fib-levels .fib-row');
+        const list = [];
+        rows.forEach(r => {
+            const v = parseFloat(r.querySelector('.fib-v').value);
+            if (!Number.isFinite(v)) return;                    // 空白或非數字的列先略過，不要弄壞整組設定
+            list.push({
+                v,
+                on: r.querySelector('input[type="checkbox"]').checked,
+                color: r.querySelector('.fib-c').value,
+                width: parseFloat(r.querySelector('.fib-w').value) || 1
+            });
+        });
+        if (list.length) { s.fibLevels = list; def.fibLevels = cloneFibLevels(list); }
+    }
+    if (s.type === 'text') {
+        s.text = document.getElementById('sp-text-input').value;
+        s.fontSize = parseInt(document.getElementById('sp-fontsize').value) || 14;
+        def.fontSize = s.fontSize;
+        delete def.width; delete def.style;   // 這兩個對文字沒意義，不要污染文字工具的預設值
+    }
+    /* V56：這裡只做即時預覽，不寫入儲存、也不更新工具預設值；
+       要等使用者按「確認」才真正生效（按「取消」則還原成開啟面板時的樣子）。 */
+    spPendingDefaults = def;
+    L.redraw();
+}
+/* 確認：把這次調整寫入儲存，並記成該工具的新預設值 */
+function spConfirm() {
+    /* V57：按下確認時「重新從面板欄位讀一次值」再套用。
+       這樣即使中途因為任何原因（例如雲端同步把圖形重新載入）讓預覽被還原，
+       按確認仍會以你當下在面板上看到的設定為準，不會變回原狀。 */
+    spApply();
+    const L = activeDrawLayer;
+    if (L) {
+        const s = L.getShape(L.selectedId);
+        if (s && s.type === 'text' && !(s.text || '').trim()) {
+            // V59：文字內容留空就直接刪除，不留下看不見的空白圖形
+            L.drawings = L.drawings.filter(d => d.id !== s.id);
+        } else if (s && spPendingDefaults) {
+            toolDefaults[s.type] = Object.assign({}, toolDefaults[s.type], spPendingDefaults);
+            persistToolDefaults();
+        }
+        L.persist();
+        L.selectedId = null;
+        L.redraw();
+    }
+    spPendingDefaults = null; spSnapshot = null; spIsNewShape = false;
+    hideShapePanel();
+}
+/* 取消：還原成開啟面板時的設定；若是剛建立、還沒確認過的圖形，直接整個刪除 */
+function spCancel() {
+    const L = spSnapshotLayer || activeDrawLayer;
+    if (L && spSnapshotId !== null) {
+        if (spIsNewShape) {
+            // V59：剛建立、還沒按過確認的圖形（目前只有文字工具），取消就整個刪除，不留殘影
+            L.drawings = L.drawings.filter(d => d.id !== spSnapshotId);
+            L.persist();
+        } else if (spSnapshot) {
+            const s = L.getShape(spSnapshotId);
+            if (s) {
+                s.color = spSnapshot.color;
+                s.width = spSnapshot.width;
+                s.style = spSnapshot.style;
+                if (spSnapshot.opacity !== undefined) s.opacity = spSnapshot.opacity;
+                if (spSnapshot.fill !== undefined) s.fill = spSnapshot.fill;
+                if (spSnapshot.bgColor !== undefined) s.bgColor = spSnapshot.bgColor;
+                if (spSnapshot.levels) s.levels = Object.assign({}, spSnapshot.levels);
+                if (spSnapshot.fibLevels) s.fibLevels = cloneFibLevels(spSnapshot.fibLevels);   // V58
+                if (spSnapshot.text !== undefined) s.text = spSnapshot.text;                      // V59
+                if (spSnapshot.fontSize !== undefined) s.fontSize = spSnapshot.fontSize;          // V59
+            }
+        }
+        L.selectedId = null;
+        L.redraw();
+    }
+    spPendingDefaults = null; spSnapshot = null; spIsNewShape = false;
+    hideShapePanel();
+}
+/* V58：新增／刪除費波係數列 */
+function spFibAdd() {
+    const L = activeDrawLayer; if (!L) return;
+    const s = L.getShape(L.selectedId); if (!s || s.type !== 'fib') return;
+    spApply();
+    const list = normalizeFibLevels(s);
+    list.push({ v: 0.5, on: true, color: '#9e9e9e', width: 1 });
+    s.fibLevels = list;
+    showShapePanel(s); L.redraw();
+}
+function spFibRemove(i) {
+    const L = activeDrawLayer; if (!L) return;
+    const s = L.getShape(L.selectedId); if (!s || s.type !== 'fib') return;
+    spApply();
+    const list = normalizeFibLevels(s);
+    if (list.length <= 1) return;   // 至少保留一列
+    list.splice(i, 1);
+    s.fibLevels = list;
+    showShapePanel(s); L.redraw();
 }
 function deleteSelected() { if (activeDrawLayer) activeDrawLayer.deleteSelected(); }
 
@@ -2410,6 +2965,8 @@ async function fetchData() {
             msgEl.style.display = 'block';
         }
 
+        renderChartSidebar();   // V48：換股成功後也要重畫側欄，否則綠色標示會一直停在上一檔
+
         // 籌碼資料延後到使用者真的切過去看時才抓（見 ensureInvestorData）
         globalInvestorData = []; investorLoadedFor = null;
         ['msg-table','msg-trend'].forEach(id => {
@@ -2493,7 +3050,8 @@ function updateTrendCharts() {
     if (!globalInvestorData.length || !globalPriceData.length) return;
     const sDate = document.getElementById('start-date').value;
     const eDate = document.getElementById('end-date').value;
-    trendKSeries.setData(globalPriceData.filter(d => d.time >= sDate && d.time <= eDate));
+    trendKData = globalPriceData.filter(d => d.time >= sDate && d.time <= eDate);   // V47
+    trendKSeries.setData(trendKData);
     trendKChart.timeScale().fitContent();
     let cF = 0, cT = 0, cD = 0, cTot = 0;
     const ldF = [], ldT = [], ldD = [], ldTotal = [];
@@ -2508,6 +3066,7 @@ function updateTrendCharts() {
     trendAlgoSeries['Trust'].setData(ldT);
     trendAlgoSeries['Dealer'].setData(ldD);
     trendAlgoSeries['Total'].setData(ldTotal);
+    trendTotalData = ldTotal;   // V47：下圖用來定位同步游標的資料
     toggleTrendSeries();
     trendAlgoChart.timeScale().fitContent();
 }
