@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股全方位戰情室 (V53)</title>
+<title>台股全方位戰情室 (V66)</title>
 <style>
 body{margin:0;padding:20px;background:#121212;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;color:#ddd}
 .main-controls{margin-bottom:15px;display:flex;gap:10px;justify-content:center;align-items:center;background:#1e1e1e;padding:10px 20px;border-radius:8px;border:1px solid #333}
@@ -65,6 +65,10 @@ button.search-btn:hover{background:#c51162}
    導致資訊列還是掉到標籤下面變成兩行。 */
 .compare-header-row .compare-ohlc{position:static;top:auto;left:auto;font-size:.75rem;gap:8px}
 .trend-controls{padding:10px;border-bottom:1px solid #333;display:flex;gap:15px;align-items:center;flex-wrap:wrap;background:#252525;height:45px}
+/* V61：籌碼透視上圖的股價走勢標籤 + 開高低收資訊列，同一行顯示 */
+.trend-header-row{position:absolute;top:10px;left:10px;z-index:6;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.trend-header-row .chart-label{position:static}
+.trend-header-row .ohlc-info{position:static;top:auto;left:auto;font-size:.75rem;gap:8px}
 .split-chart-container{flex:1;width:100%;position:relative;border-bottom:1px solid #333}
 .chart-label{position:absolute;top:10px;left:10px;z-index:5;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:4px;font-size:.8rem;color:#aaa;pointer-events:none}
 .top-toolbar-row{position:absolute;top:10px;left:56px;z-index:30;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -289,7 +293,7 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
     <div class="tab active" onclick="switchTab('chart')">K 線圖 (全覽)</div>
     <div class="tab" onclick="switchTab('compare')">強弱對比</div>
     <div class="tab" onclick="switchTab('table')">三大法人明細</div>
-    <div class="tab" onclick="switchTab('trend')">趨勢透視 (雙圖)</div>
+    <div class="tab" onclick="switchTab('trend')">籌碼透視</div>
 </div>
 
 <div id="view-watchlist" class="content-area">
@@ -402,7 +406,15 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
 <div id="view-table" class="content-area">
     <div class="table-wrapper">
         <table id="investor-table">
-            <thead><tr><th width="20%">日期</th><th width="20%">外資</th><th width="20%">投信</th><th width="20%">自營商</th><th width="20%">合計</th></tr></thead>
+            <thead><tr>
+                <th width="13%">日期</th>
+                <th width="14%">外資</th>
+                <th width="15%">外資集中度(日)</th>
+                <th width="14%">投信</th>
+                <th width="15%">投信集中度(日)</th>
+                <th width="14%">自營商</th>
+                <th width="15%">合計</th>
+            </tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -422,7 +434,13 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
             <label class="checkbox-item"><span class="legend-dot" style="background:#eeeeee"></span><input type="checkbox" id="cb-total" onchange="toggleTrendSeries()"> 合計</label>
         </div>
     </div>
-    <div class="split-chart-container"><div class="chart-label">股價走勢</div><div id="trend-k-container"></div></div>
+    <div class="split-chart-container">
+        <div class="trend-header-row">
+            <div class="chart-label">股價走勢</div>
+            <div class="ohlc-info" id="trend-ohlc-info"></div>
+        </div>
+        <div id="trend-k-container"></div>
+    </div>
     <div class="split-chart-container">
         <div class="chart-label">區間籌碼累計 (移動滑鼠以查看)</div>
         <div id="trend-algo-container"></div>
@@ -580,6 +598,7 @@ const LS = {
     }
 };
 let trendKChart, trendKSeries, trendAlgoChart, trendAlgoSeries = {};
+let trendZeroLineAnchor;   // V61：專門掛 0 軸參考線用的隱形輔助線
 /* V47：趨勢透視上下兩圖的縮放與十字游標同步（作法與強弱對比相同） */
 let trendKData = [], trendTotalData = [], trendSyncing = false;
 let compareChart = {}, compareSeries = {};   // V28：強弱對比 — {1:..., 2:...}
@@ -1014,10 +1033,28 @@ function initCharts() {
         upColor: '#ef232a', downColor: '#26a69a', borderVisible: false, wickUpColor: '#ef232a', wickDownColor: '#26a69a'
     });
     trendAlgoChart = LightweightCharts.createChart(document.getElementById('trend-algo-container'), aOpts);
-    trendAlgoSeries['Foreign'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#2962ff', lineWidth: 2 });
-    trendAlgoSeries['Trust'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#b0279d', lineWidth: 2 });
-    trendAlgoSeries['Dealer'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#ff6d00', lineWidth: 2 });
-    trendAlgoSeries['Total'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#eeeeee', lineWidth: 2 });
+    /* V62 修正：日期／邊框「沒對齊」的真正原因 —— 上圖股價數字（例如 87.10）跟下圖累計籌碼數字
+       （例如 -377990.32）位數差很多，兩張圖的Y軸座標欄寬度因此不一樣寬。就算時間軸邏輯上已經同步，
+       兩張圖實際的「繪圖區域」還是會因為座標欄寬度不同而在像素上對不齊，十字游標、右邊界看起來
+       才會像沒對準。做法是把兩張圖的Y軸最小寬度鎖成同一個值，寬度統一了，繪圖區的右邊界才會真正對齊。 */
+    [trendKChart, trendAlgoChart].forEach(c => c.priceScale('right').applyOptions({ minimumWidth: 80 }));
+    // V62：關掉每條法人線自帶的「最新值」虛線與浮動標籤，避免跟自訂的0軸參考線混在一起
+    const trendLineOpts = { priceLineVisible: false, lastValueVisible: false };
+    trendAlgoSeries['Foreign'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#2962ff', lineWidth: 2, ...trendLineOpts });
+    trendAlgoSeries['Trust'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#b0279d', lineWidth: 2, ...trendLineOpts });
+    trendAlgoSeries['Dealer'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#ff6d00', lineWidth: 2, ...trendLineOpts });
+    trendAlgoSeries['Total'] = trendAlgoChart.addSeries(LightweightCharts.LineSeries, { color: '#eeeeee', lineWidth: 2, ...trendLineOpts });
+    /* V61：在 0 軸畫一條明顯的參考線，一眼就能看出目前是在0軸之上（買超）還是之下（賣超）。
+       這條線不能直接掛在「合計」線上 —— 合計預設是「未勾選」狀態，那樣線就會跟著消失。
+       改成另外開一條完全透明、永遠 visible 的輔助線專門用來掛這條 0 軸參考線，不受勾選影響。 */
+    const zeroLineAnchor = trendAlgoChart.addSeries(LightweightCharts.LineSeries, {
+        color: 'rgba(0,0,0,0)', lineWidth: 1, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false
+    });
+    trendZeroLineAnchor = zeroLineAnchor;   // V61：暴露到外層供 updateTrendCharts() 餵資料
+    zeroLineAnchor.createPriceLine({
+        price: 0, color: '#ffffff', lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: ''
+    });
 
     /* V47：趨勢透視上下同步 — 滾輪縮放/拖曳連動，十字游標對齊同一天。
        下圖游標用「合計」線在那天的累計值定位，上圖用當天收盤價定位，
@@ -1042,7 +1079,9 @@ function initCharts() {
     trendKChart.subscribeCrosshairMove(param => {
         if (trendSyncing) return;   // 避免程式化設定游標時互相觸發造成無限迴圈
         trendSyncing = true;
-        syncTrendCrosshair(true, normalizeChartTime(param.time));
+        const t = normalizeChartTime(param.time);
+        syncTrendCrosshair(true, t);
+        updateTrendOhlcInfo(t);   // V61
         trendSyncing = false;
     });
 
@@ -1095,7 +1134,9 @@ function initCharts() {
         // V47：先把上圖的游標同步到同一天（即使沒有 tooltip 資料也要處理，游標才不會殘留）
         if (!trendSyncing) {
             trendSyncing = true;
-            syncTrendCrosshair(false, normalizeChartTime(param.time));
+            const t = normalizeChartTime(param.time);
+            syncTrendCrosshair(false, t);
+            updateTrendOhlcInfo(t);   // V61
             trendSyncing = false;
         }
         if (!param.time || param.point === undefined || !param.point.x || !param.point.y) { tooltip.style.display = 'none'; return; }
@@ -1936,6 +1977,13 @@ const FIB_DEFAULT_LEVELS = [
     { v: 0.786, on: true, color: '#00bcd4', width: 1 },
     { v: 1,     on: true, color: '#787b86', width: 1 }
 ];
+/* V64：費波那契係數改成顯示小數（0、0.236、0.5、1這種），不再顯示百分比或價位。
+   toFixed(3) 後把多餘的補零去掉，1 不會顯示成 "1.000"、0.5 不會顯示成 "0.500"。 */
+function formatFibCoef(v) {
+    let s = (Number(v) || 0).toFixed(3);
+    s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return s === '' || s === '-' ? '0' : s;
+}
 function cloneFibLevels(src) {
     return (src && src.length ? src : FIB_DEFAULT_LEVELS).map(l => ({ v: +l.v, on: l.on !== false, color: l.color || '#787b86', width: +l.width || 1 }));
 }
@@ -2369,7 +2417,7 @@ function createDrawingLayer(cfg) {
                 dctx.lineWidth = lvl.width || 1;             // V58：每一列各自的線寬
                 dctx.beginPath(); dctx.moveTo(xL, y); dctx.lineTo(xR, y); dctx.stroke();
                 dctx.fillStyle = c;
-                dctx.fillText((lvl.v*100).toFixed(1) + '%  ' + price.toFixed(2), xR + 6, y + 4);
+                dctx.fillText(formatFibCoef(lvl.v), xR + 6, y + 4);   // V64：只顯示係數（0.236這種小數），不顯示價位
             });
             const yTop = L.series.priceToCoordinate(hi), yBot = L.series.priceToCoordinate(lo);
             if (yTop !== null && yBot !== null) {
@@ -2924,6 +2972,42 @@ async function fetchCompareData(n) {
     }
 }
 
+/* V65：VIXTWN（台指選擇權波動率指數）不是股票代碼，FinMind 把它放在完全不同的
+   TaiwanOptionVix 資料集，不能像一般股票那樣查 TaiwanStockPrice。
+   因為無法直接連線實測這個新資料集實際回傳的欄位名稱，這裡做寬鬆解析：
+   依序嘗試常見欄位名稱，都找不到就退回抓「除了日期以外第一個數字欄位」。
+   萬一猜錯，畫面會直接顯示 API 實際回傳的欄位名稱，方便截圖回報調整。 */
+function parseVixRow(row) {
+    const dateKey = ['date', 'Date'].find(k => row[k] !== undefined);
+    if (!dateKey) return null;
+    const time = row[dateKey];
+    const pick = (cands) => cands.find(k => Number.isFinite(row[k]));
+    const openKey = pick(['open', 'Open']);
+    const highKey = pick(['high', 'max', 'High', 'Max']);
+    const lowKey = pick(['low', 'min', 'Low', 'Min']);
+    const closeKey = pick(['close', 'vix', 'Vix', 'VIX', 'value', 'Value', 'Close', 'TaiwanOptionVix']);
+    let close = closeKey !== undefined ? row[closeKey] : undefined;
+    if (!Number.isFinite(close)) {
+        const fallbackKey = Object.keys(row).find(k => k !== dateKey && Number.isFinite(row[k]));
+        close = fallbackKey !== undefined ? row[fallbackKey] : undefined;
+    }
+    if (!Number.isFinite(close)) return null;
+    const open = Number.isFinite(row[openKey]) ? row[openKey] : close;
+    const high = Number.isFinite(row[highKey]) ? row[highKey] : Math.max(open, close);
+    const low = Number.isFinite(row[lowKey]) ? row[lowKey] : Math.min(open, close);
+    return { time, open, high, low, close, volume: 0 };
+}
+
+/* V66 修正：原本只認得完全打「VIXTWN」，打中文說明（例如「台指選擇權波動率指數」）
+   會被誤判成一般股票代碼去查 TaiwanStockPrice，當然查不到。這裡放寬判斷，
+   常見的中文說法、或只打「VIX」都能對應到同一個資料集。 */
+function isVixQuery(raw) {
+    const s = (raw || '').trim();
+    const upper = s.toUpperCase().replace(/\s+/g, '');
+    if (upper === 'VIXTWN' || upper === 'VIX') return true;
+    return ['波動率指數', '恐慌指數', '選擇權波動'].some(k => s.includes(k));
+}
+
 async function fetchData() {
     const symbol = symbolInput.value.trim();
     if (!symbol) return alert("請輸入代碼");
@@ -2937,23 +3021,44 @@ async function fetchData() {
     const pastDate = new Date();
     pastDate.setDate(pastDate.getDate() - 1095);
     const startDate = pastDate.toISOString().split('T')[0];
+    const isVix = isVixQuery(symbol);   // V66：放寬判斷，中文說明或「VIX」也認得出來
     try {
-        // V43：法人籌碼改成「切到那兩個頁籤時才抓」，換股時的請求數從 3 降到 2，減少被限流的機會
-        const [infoRes, priceRes] = await Promise.all([
-            fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo&data_id=${symbol}`),
-            fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${symbol}&start_date=${startDate}`)
-        ]);
-        const infoJson = infoRes;
-        const priceJson = priceRes;
+        let infoJson, priceJson;
+        if (isVix) {
+            priceJson = await fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanOptionVix&start_date=${startDate}`);
+            infoJson = { data: [{ stock_name: '台指選擇權波動率指數(VIX)' }] };
+        } else {
+            // V43：法人籌碼改成「切到那兩個頁籤時才抓」，換股時的請求數從 3 降到 2，減少被限流的機會
+            const [infoRes, priceRes] = await Promise.all([
+                fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo&data_id=${symbol}`),
+                fmFetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${symbol}&start_date=${startDate}`)
+            ]);
+            infoJson = infoRes;
+            priceJson = priceRes;
+        }
 
         nameDisplay.textContent = (infoJson.data && infoJson.data.length > 0) ? infoJson.data[0].stock_name : symbol;
 
         if (priceJson.data && priceJson.data.length > 0) {
-            globalPriceData = priceJson.data.map(i => ({
-                time: i.date, open: i.open, high: i.max, low: i.min, close: i.close, volume: i.Trading_Volume
-            }));
-            applyPriceData(true);                    // V22：依目前週期 (日/週/月) 顯示，並自行顯示/隱藏 msg-chart
-            loadDrawings(symbol);                    // V22：載入此標的先前畫過的圖形
+            const parsed = isVix
+                ? priceJson.data.map(parseVixRow).filter(Boolean)
+                : priceJson.data.map(i => ({
+                    time: i.date, open: i.open, high: i.max, low: i.min, close: i.close, volume: i.Trading_Volume
+                }));
+            if (isVix && !parsed.length) {
+                // V65：欄位名稱猜錯的保險 —— 直接顯示 API 實際回傳的欄位名稱，方便回報調整解析邏輯
+                const sampleKeys = Object.keys(priceJson.data[0] || {}).join('、');
+                globalPriceData = []; displayData = [];
+                mainSeries.setData([]); volumeSeries.setData([]);
+                maConfig.forEach(cfg => cfg.series.setData([]));
+                const msgEl = document.getElementById('msg-chart');
+                msgEl.textContent = `VIX資料解析失敗，API實際回傳欄位為：${sampleKeys}（請截圖這行回報，可以馬上修正）`;
+                msgEl.style.display = 'block';
+            } else {
+                globalPriceData = parsed;
+                applyPriceData(true);                    // V22：依目前週期 (日/週/月) 顯示，並自行顯示/隱藏 msg-chart
+                loadDrawings(symbol);                    // V22：載入此標的先前畫過的圖形
+            }
         } else {
             // V22：API 回傳空資料時明確告知原因，而不是留著「載入中...」讓畫面看起來像沒反應
             globalPriceData = []; displayData = [];
@@ -3066,9 +3171,29 @@ function updateTrendCharts() {
     trendAlgoSeries['Trust'].setData(ldT);
     trendAlgoSeries['Dealer'].setData(ldD);
     trendAlgoSeries['Total'].setData(ldTotal);
+    if (trendZeroLineAnchor) trendZeroLineAnchor.setData(ldTotal.map(d => ({ time: d.time, value: 0 })));   // V61：讓0軸線鋪滿跟其他線一樣的時間範圍
     trendTotalData = ldTotal;   // V47：下圖用來定位同步游標的資料
     toggleTrendSeries();
     trendAlgoChart.timeScale().fitContent();
+    updateTrendOhlcInfo(null);   // V61：預設顯示最新一根K棒的開高低收
+}
+
+/* V61：籌碼透視上圖的開高低收資訊列 — 傳入日期字串顯示該天，傳 null 顯示最新一根K棒 */
+function updateTrendOhlcInfo(timeStr) {
+    const el = document.getElementById('trend-ohlc-info');
+    if (!el) return;
+    let bar = timeStr ? (trendKData.find(d => d.time === timeStr) || null) : null;
+    if (!bar) bar = trendKData.length ? trendKData[trendKData.length - 1] : null;
+    if (!bar) { el.innerHTML = ''; return; }
+    const ch = computeChange(trendKData, bar);
+    const color = ch.up ? '#ef232a' : '#26a69a';
+    const pct = ch.pct.toFixed(2);
+    el.innerHTML = `<span><span class="oi-label">日期</span><span class="oi-val">${bar.time}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">開</span><span class="oi-val">${bar.open.toFixed(2)}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">高</span><span class="oi-val">${bar.high.toFixed(2)}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">低</span><span class="oi-val">${bar.low.toFixed(2)}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">收</span><span class="oi-val">${bar.close.toFixed(2)}</span></span>` +
+        `<span style="color:${color}"><span class="oi-label" style="color:${color}">幅</span><span class="oi-val">${ch.up?'+':''}${pct}%</span></span>`;
 }
 
 function toggleTrendSeries() {
@@ -3078,12 +3203,30 @@ function toggleTrendSeries() {
     trendAlgoSeries['Total'].applyOptions({ visible: document.getElementById('cb-total').checked });
 }
 
+/* V63：籌碼集中度 = 當日淨買賣超(張) / 當日總成交量(張) × 100%
+   總成交量取自 globalPriceData 的 volume（FinMind 回傳原始股數，需除以1000換成「張」跟法人淨額同單位）。
+   正值代表買超、用紅字；負值代表賣超、用綠字——跟表格其他欄位的紅漲綠跌配色共用同一套規則。 */
+function concentrationCell(netLots, dayVolumeShares) {
+    if (!Number.isFinite(dayVolumeShares) || dayVolumeShares <= 0) return '—';
+    const dayVolumeLots = dayVolumeShares / 1000;
+    const pct = (netLots / dayVolumeLots) * 100;
+    const sign = pct > 0 ? '+' : '';
+    return `${sign}${pct.toFixed(2)}%`;
+}
 function renderTable(dataArray) {
     const tbody = document.querySelector("#investor-table tbody");
     tbody.innerHTML = "";
+    const volMap = new Map(globalPriceData.map(d => [d.time, d.volume]));   // V63：日期 -> 當日總成交量(股)
     [...dataArray].reverse().forEach(row => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${row.date}</td><td class="${getColor(row.Foreign)}">${fmt(row.Foreign)}</td><td class="${getColor(row.Trust)}">${fmt(row.Trust)}</td><td class="${getColor(row.Dealer)}">${fmt(row.Dealer)}</td><td class="${getColor(row.Total)}">${fmt(row.Total)}</td>`;
+        const dayVolume = volMap.get(row.date);
+        tr.innerHTML = `<td>${row.date}</td>` +
+            `<td class="${getColor(row.Foreign)}">${fmt(row.Foreign)}</td>` +
+            `<td class="${getColor(row.Foreign)}">${concentrationCell(row.Foreign, dayVolume)}</td>` +
+            `<td class="${getColor(row.Trust)}">${fmt(row.Trust)}</td>` +
+            `<td class="${getColor(row.Trust)}">${concentrationCell(row.Trust, dayVolume)}</td>` +
+            `<td class="${getColor(row.Dealer)}">${fmt(row.Dealer)}</td>` +
+            `<td class="${getColor(row.Total)}">${fmt(row.Total)}</td>`;
         tbody.appendChild(tr);
     });
 }
