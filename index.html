@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股全方位戰情室 (V66)</title>
+<title>台股全方位戰情室 (V86)</title>
 <style>
 body{margin:0;padding:20px;background:#121212;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;color:#ddd}
 .main-controls{margin-bottom:15px;display:flex;gap:10px;justify-content:center;align-items:center;background:#1e1e1e;padding:10px 20px;border-radius:8px;border:1px solid #333}
@@ -164,6 +164,10 @@ button.search-btn:hover{background:#c51162}
 .bottom-tools{position:absolute;right:28px;bottom:2px;z-index:25;display:flex;align-items:center;gap:1px}
 /* V24：OHLC 資訊列 */
 .ohlc-info{position:absolute;top:46px;left:56px;z-index:24;background:rgba(20,20,20,.72);border-radius:4px;padding:4px 10px;font-size:.8rem;font-family:'Segoe UI Mono',monospace;display:flex;gap:12px;align-items:center;pointer-events:none;white-space:nowrap}
+/* V73：KD/MACD 圖例改成固定顯示在主圖OHLC資訊列正下方，不再跟著各自窗格的高度浮動定位，
+   徹底避開視窗縮放/開關順序造成位置或高度跑掉的問題 */
+.indicator-legend-fixed{position:absolute;top:70px;left:56px;z-index:24;display:flex;flex-direction:column;gap:2px;pointer-events:none}
+.indicator-legend-fixed .pane-legend{position:static;pointer-events:auto}
 .ohlc-info .oi-label{color:#888;margin-right:2px}
 .ohlc-info .oi-val{font-weight:bold}
 .ohlc-info .oi-name{color:#ddd;font-weight:bold;margin-right:4px}
@@ -191,6 +195,20 @@ button.search-btn:hover{background:#c51162}
 .form-row{display:flex;gap:5px;align-items:center;flex:1}
 .ma-width-input{width:36px;padding:5px;background:#333;border:1px solid #555;color:#fff;border-radius:4px;text-align:center}
 .modal-sync-row{display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:15px;padding-bottom:12px;border-bottom:1px solid #444;color:#ccc;font-size:.9rem;cursor:pointer;user-select:none}
+/* V69：KD/MACD 副圖窗格左上角的圖例（齒輪設定鈕 + 數值） */
+.pane-legend{position:absolute;left:4px;z-index:5;display:flex;align-items:center;gap:6px;background:rgba(20,20,20,.6);padding:2px 8px;border-radius:4px;pointer-events:auto}
+.pane-gear-btn{background:transparent;border:none;color:#999;cursor:pointer;padding:0;display:flex;align-items:center}
+.pane-gear-btn:hover{color:#fff}
+.pane-legend-text{font-size:.75rem;font-family:monospace;color:#ddd;white-space:nowrap}
+/* V69：KD/MACD 設定視窗的小標題與列 */
+.ind-set-title{font-size:.85rem;font-weight:bold;color:#ccc;margin:12px 0 6px;padding-top:10px;border-top:1px solid #3a3a3a}
+.ind-set-title:first-child{margin-top:0;padding-top:0;border-top:none}
+.ind-set-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.85rem}
+.ind-set-row label{width:52px;color:#aaa;flex-shrink:0}
+.ind-set-row input[type="number"]{width:52px;padding:4px;background:#333;border:1px solid #555;color:#fff;border-radius:4px;text-align:center}
+.ind-set-row input[type="color"]{width:32px;height:26px;padding:0;border:none;background:none;cursor:pointer}
+.ind-set-row select{padding:4px;background:#333;border:1px solid #555;color:#fff;border-radius:4px;font-size:.8rem}
+.ind-set-row input[type="checkbox"]{cursor:pointer}
 .form-input{width:50px;padding:5px;background:#333;border:1px solid #555;color:#fff;border-radius:4px;text-align:center}
 .color-picker{width:30px;height:30px;padding:0;border:none;background:none;cursor:pointer}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
@@ -369,6 +387,7 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
     </div>
 
     <div class="ohlc-info" id="ohlc-info"></div>
+    <div class="indicator-legend-fixed" id="indicator-legend-fixed"></div>
     <div id="chart-container"></div>
     <canvas class="draw-canvas" id="main-canvas"></canvas>
     <div class="bottom-tools">
@@ -521,6 +540,83 @@ th:first-child,td:first-child{text-align:left;color:#ddd}
 </div>
 
 <!-- V44：FinMind API Token 設定視窗 -->
+<!-- V69：KD 設定視窗 -->
+<div id="kd-settings-modal" class="modal-overlay">
+    <div class="modal-content" style="width:420px">
+        <div class="modal-title">KD 指標設定</div>
+        <div class="sync-modal-body">
+            <div class="ind-set-title">參數</div>
+            <div class="ind-set-row"><label>週期(n)</label><input type="number" id="kd-set-n" min="2" max="60"><label style="width:auto;margin-left:8px">K平滑</label><input type="number" id="kd-set-k" min="1" max="20"><label style="width:auto;margin-left:8px">D平滑</label><input type="number" id="kd-set-d" min="1" max="20"></div>
+            <div class="ind-set-title">K 線</div>
+            <div class="ind-set-row"><label>顏色</label><input type="color" id="kd-set-kcolor"><label style="width:auto;margin-left:8px">粗細</label><input type="number" id="kd-set-kwidth" min="1" max="6" step="0.5"><select id="kd-set-kstyle" style="margin-left:8px"><option value="solid">實線</option><option value="dashed">虛線</option><option value="dotted">點線</option></select></div>
+            <div class="ind-set-title">D 線</div>
+            <div class="ind-set-row"><label>顏色</label><input type="color" id="kd-set-dcolor"><label style="width:auto;margin-left:8px">粗細</label><input type="number" id="kd-set-dwidth" min="1" max="6" step="0.5"><select id="kd-set-dstyle" style="margin-left:8px"><option value="solid">實線</option><option value="dashed">虛線</option><option value="dotted">點線</option></select></div>
+            <div class="ind-set-title">超買 / 中線 / 超賣 水平線</div>
+            <div class="ind-set-row"><input type="checkbox" id="kd-set-overbought-on"><label style="width:auto">超買</label><input type="number" id="kd-set-overbought-value" min="0" max="100"><input type="color" id="kd-set-overbought-color" style="margin-left:6px" title="線條顏色"><input type="color" id="kd-set-overbought-fillcolor" style="margin-left:4px" title="填滿顏色"></div>
+            <div class="ind-set-row"><input type="checkbox" id="kd-set-midline-on"><label style="width:auto">中線</label><input type="number" id="kd-set-midline-value" min="0" max="100"><input type="color" id="kd-set-midline-color" style="margin-left:6px"></div>
+            <div class="ind-set-row"><input type="checkbox" id="kd-set-oversold-on"><label style="width:auto">超賣</label><input type="number" id="kd-set-oversold-value" min="0" max="100"><input type="color" id="kd-set-oversold-color" style="margin-left:6px" title="線條顏色"><input type="color" id="kd-set-oversold-fillcolor" style="margin-left:4px" title="填滿顏色"></div>
+            <div class="sync-modal-actions">
+                <button class="btn-cancel" onclick="closeKdSettings()">取消</button>
+                <button class="btn-save" onclick="saveKdSettings()">儲存設定</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- V69：MACD 設定視窗 -->
+<div id="macd-settings-modal" class="modal-overlay">
+    <div class="modal-content" style="width:420px">
+        <div class="modal-title">MACD 指標設定</div>
+        <div class="sync-modal-body">
+            <div class="ind-set-title">參數</div>
+            <div class="ind-set-row"><label>快線</label><input type="number" id="macd-set-fast" min="2" max="100"><label style="width:auto;margin-left:8px">慢線</label><input type="number" id="macd-set-slow" min="2" max="200"><label style="width:auto;margin-left:8px">訊號</label><input type="number" id="macd-set-signal" min="2" max="60"></div>
+            <div class="ind-set-title">DIF 線</div>
+            <div class="ind-set-row"><label>顏色</label><input type="color" id="macd-set-macdcolor"><label style="width:auto;margin-left:8px">粗細</label><input type="number" id="macd-set-macdwidth" min="1" max="6" step="0.5"><select id="macd-set-macdstyle" style="margin-left:8px"><option value="solid">實線</option><option value="dashed">虛線</option><option value="dotted">點線</option></select></div>
+            <div class="ind-set-title">MACD 線</div>
+            <div class="ind-set-row"><label>顏色</label><input type="color" id="macd-set-sigcolor"><label style="width:auto;margin-left:8px">粗細</label><input type="number" id="macd-set-sigwidth" min="1" max="6" step="0.5"><select id="macd-set-sigstyle" style="margin-left:8px"><option value="solid">實線</option><option value="dashed">虛線</option><option value="dotted">點線</option></select></div>
+            <div class="ind-set-title">OSC 柱狀圖</div>
+            <div class="ind-set-row"><label>漲(紅)</label><input type="color" id="macd-set-histup"><label style="width:auto;margin-left:8px">跌(綠)</label><input type="color" id="macd-set-histdown"></div>
+            <div class="ind-set-row"><label>轉折色</label><input type="color" id="macd-set-histturn"><label style="width:auto;margin-left:6px" title="0軸上轉折向下、0軸下轉折向上時的警示色">(0軸轉折警示)</label></div>
+            <div class="ind-set-title">OSC 數值文字</div>
+            <div class="ind-set-row"><label>顏色</label><input type="color" id="macd-set-osccolor"></div>
+            <div class="sync-modal-actions">
+                <button class="btn-cancel" onclick="closeMacdSettings()">取消</button>
+                <button class="btn-save" onclick="saveMacdSettings()">儲存設定</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- V83：大漲/大跌標記設定視窗 -->
+<div id="bigmove-settings-modal" class="modal-overlay">
+    <div class="modal-content" style="width:400px">
+        <div class="modal-title">大漲/大跌標記設定</div>
+        <div class="sync-modal-body">
+            <div class="ind-set-title">第一級（大漲跌）</div>
+            <div class="ind-set-row"><label>漲跌幅≥</label><input type="number" id="bigmove-set-threshold" min="0.1" max="50" step="0.1"><label style="width:auto;margin-left:4px">%</label></div>
+            <div class="ind-set-row"><label>樣式</label><select id="bigmove-set-symbol" style="margin-left:4px">
+                <option value="triangle">小三角形</option>
+                <option value="arrow">箭頭</option>
+                <option value="circle">圓點</option>
+                <option value="diamond">菱形</option>
+            </select></div>
+            <div class="ind-set-row"><label>顏色</label><label style="width:auto;margin-left:4px">大漲</label><input type="color" id="bigmove-set-upcolor"><label style="width:auto;margin-left:8px">大跌</label><input type="color" id="bigmove-set-downcolor"></div>
+            <div class="ind-set-title">第二級（中漲跌）</div>
+            <div class="ind-set-row"><label>漲跌幅≥</label><input type="number" id="bigmove-set-threshold2" min="0.1" max="50" step="0.1"><label style="width:auto;margin-left:4px" id="bigmove-tier2-hint">%（上限自動等於第一級門檻）</label></div>
+            <div class="ind-set-row"><label>樣式</label><select id="bigmove-set-symbol2" style="margin-left:4px">
+                <option value="triangle">小三角形</option>
+                <option value="arrow">箭頭</option>
+                <option value="circle">圓點</option>
+                <option value="diamond">菱形</option>
+            </select></div>
+            <div class="ind-set-row"><label>顏色</label><label style="width:auto;margin-left:4px">中漲</label><input type="color" id="bigmove-set-upcolor2"><label style="width:auto;margin-left:8px">中跌</label><input type="color" id="bigmove-set-downcolor2"></div>
+            <div class="ind-set-title">共用設定</div>
+            <div class="ind-set-row"><input type="checkbox" id="bigmove-set-showdown"><label style="width:auto">同時標示大跌／中跌（不勾選則只標示上漲方向）</label></div>
+            <div class="sync-modal-actions">
+                <button class="btn-cancel" onclick="closeBigMoveSettings()">取消</button>
+                <button class="btn-save" onclick="saveBigMoveSettings()">儲存設定</button>
+            </div>
+        </div>
+    </div>
+</div>
 <div id="token-modal" class="modal-overlay">
     <div class="modal-content" style="width:460px">
         <div class="modal-title">🔑 FinMind API Token</div>
@@ -590,11 +686,29 @@ function clearFirebaseConfigRaw() {
     try { localStorage.removeItem('wr_fbConfig'); } catch (e) {}
 }
 
+/* V82 修正：Firebase 的 set() 只要物件裡任何一層出現 undefined 就會「同步」拋出例外
+   （不是進 catch，是直接整個函式中斷），例如這次 KD 設定裡 midline.fillColor 忘了給預設值
+   而停留在 undefined，一寫入雲端就讓整個儲存流程卡死、視窗打不開也關不掉。
+   除了修正這個特定觸發點之外，這裡也順手加上一層通用保護：寫入雲端前，先把物件裡所有
+   undefined 遞迴轉成 null（Firebase 允許 null），這樣以後不管哪個功能不小心留下 undefined，
+   都不會再讓整個儲存動作硬生生中斷。 */
+function sanitizeForFirebase(value) {
+    if (value === undefined) return null;
+    if (value === null || typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map(sanitizeForFirebase);
+    const out = {};
+    for (const k in value) { if (Object.prototype.hasOwnProperty.call(value, k)) out[k] = sanitizeForFirebase(value[k]); }
+    return out;
+}
 const LS = {
     get(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } },
     set(k, v)   {
         try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
-        if (fbRoot) fbRoot.child(k).set(v).catch(err => console.error('雲端同步寫入失敗:', err));   // V25
+        if (fbRoot) {
+            try {
+                fbRoot.child(k).set(sanitizeForFirebase(v)).catch(err => console.error('雲端同步寫入失敗:', err));
+            } catch (err) { console.error('雲端同步寫入失敗(同步例外):', err); }   // V25
+        }
     }
 };
 let trendKChart, trendKSeries, trendAlgoChart, trendAlgoSeries = {};
@@ -972,6 +1086,411 @@ function toggleVwma() {
     persistVwma();
 }
 
+/* ══════════ V68：KD / MACD 副圖（用 Lightweight Charts v5 原生的 pane 功能，
+   直接掛在 mainChart 底下當作額外的窗格，時間軸自動跟主圖同步，不用像早期
+   版本那樣手動兜多個獨立圖表的同步邏輯，也不會有座標軸寬度對不齊的問題）
+   V69：加上仿 TradingView 的齒輪設定（顏色/線寬/樣式）、左上角數值圖例、KD超買超賣線 ══════════ */
+let kdVisible = LS.get('wr_kdVisible', false);
+let macdVisible = LS.get('wr_macdVisible', false);
+let kdParams = Object.assign({ n: 9, k: 3, d: 3 }, LS.get('wr_kdParams', {}));
+let macdParams = Object.assign({ fast: 12, slow: 26, signal: 9 }, LS.get('wr_macdParams', {}));
+let kdKSeries = null, kdDSeries = null;
+let kdOverboughtFillSeries = null, kdOversoldFillSeries = null;   // V80：超買/超賣區域填色
+let macdLineSeries = null, macdSignalSeries = null, macdHistSeries = null;
+let kdLatest = { k: null, d: null };
+let macdLatest = { macd: null, signal: null, hist: null };
+let kdRefLineObjs = [];
+
+/* V69：每條線的顏色/線寬/樣式，以及 KD 的超買/中線/超賣參考線設定，皆可調整並記住 */
+let kdStyle = Object.assign({
+    k: { color: '#ffca28', width: 1.5, style: 'solid' },
+    d: { color: '#4dabf7', width: 1.5, style: 'solid' }
+}, LS.get('wr_kdStyle', {}));
+let kdRefLines = Object.assign({
+    overbought: { value: 80, color: '#ff5252', width: 1, style: 'dashed', visible: true, fillColor: '#ff5252' },
+    midline:    { value: 50, color: '#4dabf7', width: 1, style: 'dashed', visible: true },
+    oversold:   { value: 20, color: '#00e676', width: 1, style: 'dashed', visible: true, fillColor: '#00e676' }
+}, LS.get('wr_kdRefLines', {}));
+let macdStyle = Object.assign({
+    macd:   { color: '#2962ff', width: 1.5, style: 'solid' },
+    signal: { color: '#ff6d00', width: 1.5, style: 'solid' },
+    histUp: '#ef232a', histDown: '#26a69a',
+    histTurn: '#ffffff',   // V75：0軸上轉折向下、0軸下轉折向上時，柱狀體改用這個顏色（俗稱「四色OSC」的警示色）
+    oscColor: '#ffeb3b'    // V75：圖例裡 OSC 數值的文字顏色
+}, LS.get('wr_macdStyle', {}));
+
+function lwLineStyleNum(styleName) {
+    const M = (typeof LightweightCharts !== 'undefined' && LightweightCharts.LineStyle) || { Solid: 0, Dotted: 1, Dashed: 2 };
+    return { solid: M.Solid, dashed: M.Dashed, dotted: M.Dotted }[styleName] ?? M.Solid;
+}
+
+/* KD：RSV=(收盤-n日最低)/(n日最高-n日最低)*100；K=前K*(2/3)+RSV*(1/3)；D=前D*(2/3)+K*(1/3)；起始K=D=50 */
+function calculateKD(data, n, kSmooth, dSmooth) {
+    const kArr = [], dArr = [];
+    let prevK = 50, prevD = 50;
+    for (let i = 0; i < data.length; i++) {
+        if (i < n - 1) continue;
+        let hh = -Infinity, ll = Infinity;
+        for (let j = i - n + 1; j <= i; j++) { hh = Math.max(hh, data[j].high); ll = Math.min(ll, data[j].low); }
+        const rsv = hh === ll ? 50 : (data[i].close - ll) / (hh - ll) * 100;
+        const k = prevK * (kSmooth - 1) / kSmooth + rsv * (1 / kSmooth);
+        const d = prevD * (dSmooth - 1) / dSmooth + k * (1 / dSmooth);
+        kArr.push({ time: data[i].time, value: k });
+        dArr.push({ time: data[i].time, value: d });
+        prevK = k; prevD = d;
+    }
+    return { k: kArr, d: dArr };
+}
+/* MACD：EMA(收盤,fast) - EMA(收盤,slow) = MACD線；訊號線 = EMA(MACD線,signal)；柱狀圖 = MACD - 訊號 */
+function emaSeries(values, period) {
+    const k = 2 / (period + 1);
+    const out = []; let prev = values[0]; out.push(prev);
+    for (let i = 1; i < values.length; i++) { prev = values[i] * k + prev * (1 - k); out.push(prev); }
+    return out;
+}
+function calculateMACD(data, fast, slow, signal) {
+    const closes = data.map(d => d.close);
+    const emaFast = emaSeries(closes, fast), emaSlow = emaSeries(closes, slow);
+    const macdLine = closes.map((_, i) => emaFast[i] - emaSlow[i]);
+    const signalLine = emaSeries(macdLine, signal);
+    const macd = [], sig = [], hist = [];
+    let prevVal = null;
+    for (let i = 0; i < data.length; i++) {
+        const val = macdLine[i] - signalLine[i];
+        macd.push({ time: data[i].time, value: macdLine[i] });
+        sig.push({ time: data[i].time, value: signalLine[i] });
+        /* V75：「四色OSC」——0軸以上正常是紅色實體，但這一根比前一根小（由正轉折向下）時改成白色警示；
+           0軸以下正常是綠色實體，但這一根比前一根大（由負轉折向上）時也改成白色警示。 */
+        let color;
+        if (val >= 0) color = (prevVal !== null && val < prevVal) ? macdStyle.histTurn : macdStyle.histUp;
+        else color = (prevVal !== null && val > prevVal) ? macdStyle.histTurn : macdStyle.histDown;
+        hist.push({ time: data[i].time, value: val, color });
+        prevVal = val;
+    }
+    return { macd, signal: sig, histogram: hist };
+}
+
+/* V69：把 KD 的超買/中線/超賣參考線畫上去（掛在K線上，價格軸範圍固定是0~100，用哪條線掛都一樣） */
+function applyKdRefLines() {
+    kdRefLineObjs = [];
+    if (!kdKSeries) return;
+    ['overbought', 'midline', 'oversold'].forEach(key => {
+        const cfg = kdRefLines[key];
+        if (!cfg || !cfg.visible) return;
+        try {
+            kdRefLineObjs.push(kdKSeries.createPriceLine({
+                price: cfg.value, color: cfg.color, lineWidth: cfg.width || 1,
+                lineStyle: lwLineStyleNum(cfg.style), axisLabelVisible: true, title: ''
+            }));
+        } catch (e) { console.error('建立KD參考線失敗:', e); }
+    });
+}
+/* V69：在副圖窗格左上角掛一個小圖例（齒輪設定鈕 + 數值），做法是拿到該窗格自己的 DOM 元素直接掛上去 */
+let kdPaneIdx = null, macdPaneIdx = null;   // 記住KD/MACD目前佔第幾個窗格（仍用來設高度，不再用來算圖例位置）
+
+/* V73 修正：V71/V72 想辦法把圖例定位在對應窗格的正確高度，但這需要準確算出每個窗格的即時高度，
+   窗格高度本身又受到開關順序、resize時機等因素影響，一直在打地鼠。既然使用者本來就希望
+   KD/MACD的數值「固定」顯示在同一個地方，乾脆放棄動態定位，改成直接固定顯示在主圖OHLC
+   資訊列正下方——不管窗格高度怎麼變、視窗怎麼縮放，這個位置永遠不會跑掉，也不用再計算。 */
+function injectPaneLegend(paneIndex, kind) {
+    try {
+        const container = document.getElementById('indicator-legend-fixed');
+        const wrapId = kind === 'kd' ? 'kd-pane-legend-wrap' : 'macd-pane-legend-wrap';
+        document.querySelectorAll('#' + wrapId).forEach(el => el.remove());
+        const div = document.createElement('div');
+        div.id = wrapId;
+        div.className = 'pane-legend';
+        const label = kind === 'kd' ? `KD(${kdParams.n},${kdParams.k},${kdParams.d})` : `MACD(${macdParams.fast},${macdParams.slow},${macdParams.signal})`;
+        div.innerHTML = `<button class="pane-gear-btn" onclick="${kind === 'kd' ? 'openKdSettings()' : 'openMacdSettings()'}" title="設定參數">${GEAR_SVG}</button>` +
+            `<span class="pane-legend-text" id="${kind}-legend-text">${label}</span>`;
+        // KD永遠排在MACD上面，不管哪一個先被打開
+        if (kind === 'kd') container.insertBefore(div, container.firstChild);
+        else container.appendChild(div);
+        updateIndicatorLegends(null);
+    } catch (e) { console.error('掛載副圖圖例失敗:', e); }
+}
+const GEAR_SVG = '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>';
+
+/* 依目前 KD/MACD 的顯示狀態重新建立副圖窗格。做法是「整批拆掉、重新建立」而不是精算索引位移，
+   因為移除 pane 會讓後面 pane 的編號自動往前遞補，追蹤起來容易出錯，重建雖然多花一點點運算，
+   但邏輯簡單很多、不容易壞。 */
+function rebuildSubPanes() {
+    if (!mainChart) return;
+    try {
+        while (mainChart.panes().length > 1) mainChart.removePane(mainChart.panes().length - 1);
+    } catch (e) { console.error('清除副圖窗格失敗:', e); }
+    // V69：把兩個圖例都清掉再重建，避免關閉某個指標後留下指向已移除窗格的殘留圖例
+    document.querySelectorAll('#kd-pane-legend-wrap, #macd-pane-legend-wrap').forEach(el => el.remove());
+    kdKSeries = kdDSeries = macdLineSeries = macdSignalSeries = macdHistSeries = null;
+    kdOverboughtFillSeries = kdOversoldFillSeries = null;   // V80
+    kdPaneIdx = macdPaneIdx = null;
+    let nextPane = 1;
+    if (kdVisible) {
+        const p = nextPane++;
+        kdPaneIdx = p;
+        // V71：title 拿掉——這個欄位會讓函式庫自己在價格軸旁邊多畫一個色塊標籤（K/D/MACD/Signal），
+        // 跟我們自己做的左上角圖例重複、又是我們控制不到的位置，乾脆不設，只靠自己的圖例顯示名稱。
+        kdKSeries = mainChart.addSeries(LightweightCharts.LineSeries, {
+            color: kdStyle.k.color, lineWidth: kdStyle.k.width, lineStyle: lwLineStyleNum(kdStyle.k.style),
+            lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false
+        }, p);
+        kdDSeries = mainChart.addSeries(LightweightCharts.LineSeries, {
+            color: kdStyle.d.color, lineWidth: kdStyle.d.width, lineStyle: lwLineStyleNum(kdStyle.d.style),
+            lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false
+        }, p);
+        try { kdKSeries.priceScale().applyOptions({ scaleMargins: { top: 0.15, bottom: 0.15 } }); } catch (e) {}
+        /* V80：超買/超賣區域填色。做法是用 BaselineSeries——它會用「基準值」把資料分成上下兩半，
+           上半跟下半各自可以指定不同的填色。把其中一半設成完全透明，另一半設成想要的顏色，
+           就能做出「只在超過某個門檻時才填色」的效果，而不是整條線上下都塗滿。
+           基準值設成超買/超賣的門檻值，餵的資料是 K 值本身：
+           - 超買填色：只有K在門檻(80)以上的部分會被填色，門檻以下完全透明
+           - 超賣填色：只有K在門檻(35)以下的部分會被填色，門檻以上完全透明 */
+        if (kdRefLines.overbought && kdRefLines.overbought.visible) {
+            const fc = kdRefLines.overbought.fillColor || kdRefLines.overbought.color;
+            try {
+                kdOverboughtFillSeries = mainChart.addSeries(LightweightCharts.BaselineSeries, {
+                    baseValue: { type: 'price', price: kdRefLines.overbought.value },
+                    topFillColor1: hexToRgba(fc, 0.35), topFillColor2: hexToRgba(fc, 0.35), topLineColor: 'rgba(0,0,0,0)',
+                    bottomFillColor1: 'rgba(0,0,0,0)', bottomFillColor2: 'rgba(0,0,0,0)', bottomLineColor: 'rgba(0,0,0,0)',
+                    lineVisible: false, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false
+                }, p);
+            } catch (e) { console.error('建立超買填色失敗:', e); kdOverboughtFillSeries = null; }
+        }
+        if (kdRefLines.oversold && kdRefLines.oversold.visible) {
+            const fc = kdRefLines.oversold.fillColor || kdRefLines.oversold.color;
+            try {
+                kdOversoldFillSeries = mainChart.addSeries(LightweightCharts.BaselineSeries, {
+                    baseValue: { type: 'price', price: kdRefLines.oversold.value },
+                    topFillColor1: 'rgba(0,0,0,0)', topFillColor2: 'rgba(0,0,0,0)', topLineColor: 'rgba(0,0,0,0)',
+                    bottomFillColor1: hexToRgba(fc, 0.35), bottomFillColor2: hexToRgba(fc, 0.35), bottomLineColor: 'rgba(0,0,0,0)',
+                    lineVisible: false, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false
+                }, p);
+            } catch (e) { console.error('建立超賣填色失敗:', e); kdOversoldFillSeries = null; }
+        }
+        applyKdRefLines();
+    }
+    if (macdVisible) {
+        const p = nextPane++;
+        macdPaneIdx = p;
+        macdHistSeries = mainChart.addSeries(LightweightCharts.HistogramSeries, { lastValueVisible: false, priceLineVisible: false }, p);
+        macdLineSeries = mainChart.addSeries(LightweightCharts.LineSeries, {
+            color: macdStyle.macd.color, lineWidth: macdStyle.macd.width, lineStyle: lwLineStyleNum(macdStyle.macd.style),
+            lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false
+        }, p);
+        macdSignalSeries = mainChart.addSeries(LightweightCharts.LineSeries, {
+            color: macdStyle.signal.color, lineWidth: macdStyle.signal.width, lineStyle: lwLineStyleNum(macdStyle.signal.style),
+            lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false
+        }, p);
+        // V72：跟 KD 用同一組留白比例，避免兩個窗格看起來一個比較窄一個比較寬
+        try { macdLineSeries.priceScale().applyOptions({ scaleMargins: { top: 0.15, bottom: 0.15 } }); } catch (e) {}
+    }
+    /* V72：兩個窗格都建立完之後，「一起」再設定一次高度，不要各自建立時各設一次——
+       避免因為建立順序不同（先建KD、後建MACD時MACD的加入可能讓KD的既有高度被重新分配過一次）
+       導致兩個窗格最後停留在不一樣的實際高度，即使兩邊給的目標值都是120。 */
+    try { if (kdPaneIdx !== null) mainChart.panes()[kdPaneIdx].setHeight(120); } catch (e) {}
+    try { if (macdPaneIdx !== null) mainChart.panes()[macdPaneIdx].setHeight(120); } catch (e) {}
+    // V71：圖例改成不依賴 getHTMLElement()，這裡可以直接同步掛上去，不用再等/重試
+    if (kdVisible) injectPaneLegend(kdPaneIdx, 'kd');
+    if (macdVisible) injectPaneLegend(macdPaneIdx, 'macd');
+    applySubPaneData();
+    /* V70~V73：切換或存設定後要重新排版，且窗格高度要「事後再三確認」——
+       實測發現先開MACD、再開KD時，KD窗格會被壓得很扁，需要手動調整才會恢復正常。
+       這很像是窗格的內部版面配置權重跟「先前有沒有其他窗格佔用過同一個索引」有關，
+       單一次補設定不夠保險，所以這裡連續補兩輪 setHeight，確保不管開啟順序為何，
+       兩個窗格最後都會落在同樣的高度。 */
+    if (typeof resizeAllCharts === 'function') {
+        const reassertHeights = () => {
+            try { if (kdVisible && kdPaneIdx !== null) mainChart.panes()[kdPaneIdx].setHeight(120); } catch (e) {}
+            try { if (macdVisible && macdPaneIdx !== null) mainChart.panes()[macdPaneIdx].setHeight(120); } catch (e) {}
+        };
+        requestAnimationFrame(() => {
+            resizeAllCharts();
+            reassertHeights();
+            requestAnimationFrame(() => {
+                resizeAllCharts();
+                reassertHeights();   // 第二輪：對付「先開MACD、再開KD」時第一輪還壓不住的情況
+            });
+        });
+    }
+}
+let macdHistData = [];   // V74：保留完整的OSC陣列，供「跟前一根比較」的方向箭頭使用
+/* 換股、換週期、切換還原股價時都要重新算一次餵給副圖 */
+function applySubPaneData() {
+    if (!displayData.length) return;
+    if (kdVisible && kdKSeries) {
+        const kd = calculateKD(displayData, kdParams.n, kdParams.k, kdParams.d);
+        kdKSeries.setData(kd.k);
+        kdDSeries.setData(kd.d);
+        if (kdOverboughtFillSeries) kdOverboughtFillSeries.setData(kd.k);   // V80：填色範圍跟著K值走
+        if (kdOversoldFillSeries) kdOversoldFillSeries.setData(kd.k);
+        kdLatest.k = kd.k.length ? kd.k[kd.k.length - 1].value : null;
+        kdLatest.d = kd.d.length ? kd.d[kd.d.length - 1].value : null;
+    }
+    if (macdVisible && macdLineSeries) {
+        const m = calculateMACD(displayData, macdParams.fast, macdParams.slow, macdParams.signal);
+        macdLineSeries.setData(m.macd);
+        macdSignalSeries.setData(m.signal);
+        macdHistSeries.setData(m.histogram);
+        macdHistData = m.histogram;   // V74
+        macdLatest.macd = m.macd.length ? m.macd[m.macd.length - 1].value : null;
+        macdLatest.signal = m.signal.length ? m.signal[m.signal.length - 1].value : null;
+        macdLatest.hist = m.histogram.length ? m.histogram[m.histogram.length - 1].value : null;
+    }
+    updateIndicatorLegends(null);   // V69：資料重新整理後，圖例先顯示最新一筆
+}
+/* V74：OSC方向箭頭——跟前一根比較，變大用紅色▲、變小用綠色▼，顏色沿用柱狀圖既有的漲跌配色設定 */
+function oscDirectionArrow(idx) {
+    if (idx == null || idx <= 0 || idx >= macdHistData.length) return null;
+    const cur = macdHistData[idx].value, prev = macdHistData[idx - 1].value;
+    if (cur > prev) return { symbol: '▲', color: macdStyle.histUp };
+    if (cur < prev) return { symbol: '▼', color: macdStyle.histDown };
+    return null;
+}
+/* V69：副圖左上角的數值圖例；有游標時顯示游標那天的值，沒有時顯示最新一筆 */
+function updateIndicatorLegends(param) {
+    if (kdVisible) {
+        let kVal = kdLatest.k, dVal = kdLatest.d;
+        if (param && param.time && param.seriesData && kdKSeries) {
+            const kd = param.seriesData.get(kdKSeries), dd = param.seriesData.get(kdDSeries);
+            if (kd) kVal = kd.value;
+            if (dd) dVal = dd.value;
+        }
+        const el = document.getElementById('kd-legend-text');
+        // V74：K值、D值的數字顏色沿用各自線條的顏色設定，在設定視窗調線的顏色時這裡也會跟著變
+        if (el) el.innerHTML = `KD(${kdParams.n},${kdParams.k},${kdParams.d})  ` +
+            `<span style="color:${kdStyle.k.color}">K ${kVal != null ? kVal.toFixed(2) : '--'}</span>  ` +
+            `<span style="color:${kdStyle.d.color}">D ${dVal != null ? dVal.toFixed(2) : '--'}</span>`;
+    }
+    if (macdVisible) {
+        let mVal = macdLatest.macd, sVal = macdLatest.signal, hVal = macdLatest.hist;
+        let histIdx = macdHistData.length - 1;   // 預設用最新一筆
+        if (param && param.time && param.seriesData && macdLineSeries) {
+            const m = param.seriesData.get(macdLineSeries), s = param.seriesData.get(macdSignalSeries), h = param.seriesData.get(macdHistSeries);
+            if (m) mVal = m.value; if (s) sVal = s.value; if (h) hVal = h.value;
+            let t = param.time;
+            if (typeof t === 'object') t = `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`;
+            const idx = macdHistData.findIndex(d => d.time === t);
+            if (idx >= 0) histIdx = idx;
+        }
+        // V74：OSC旁邊加上方向箭頭——比前一根大用紅色▲、比前一根小用綠色▼
+        const arrow = oscDirectionArrow(histIdx);
+        const arrowHtml = arrow ? ` <span style="color:${arrow.color}">${arrow.symbol}</span>` : '';
+        const el = document.getElementById('macd-legend-text');
+        if (el) el.innerHTML = `MACD(${macdParams.fast},${macdParams.slow},${macdParams.signal})  ` +
+            `<span style="color:${macdStyle.macd.color}">DIF ${mVal != null ? mVal.toFixed(2) : '--'}</span>  ` +
+            `<span style="color:${macdStyle.signal.color}">MACD ${sVal != null ? sVal.toFixed(2) : '--'}</span>  ` +
+            `<span style="color:${macdStyle.oscColor}">OSC ${hVal != null ? hVal.toFixed(2) : '--'}</span>${arrowHtml}`;
+    }
+}
+function toggleIndicatorPane(which) {
+    if (which === 'kd') { kdVisible = document.getElementById('ind-kd-check').checked; LS.set('wr_kdVisible', kdVisible); }
+    else { macdVisible = document.getElementById('ind-macd-check').checked; LS.set('wr_macdVisible', macdVisible); }
+    rebuildSubPanes();
+    resizeAllCharts();   // 副圖窗格加入/移除後，主圖的可用高度變了，要重新量測尺寸
+}
+
+/* ---- V69：KD 設定視窗 ---- */
+function openKdSettings() {
+    document.getElementById('kd-set-n').value = kdParams.n;
+    document.getElementById('kd-set-k').value = kdParams.k;
+    document.getElementById('kd-set-d').value = kdParams.d;
+    document.getElementById('kd-set-kcolor').value = kdStyle.k.color;
+    document.getElementById('kd-set-kwidth').value = kdStyle.k.width;
+    document.getElementById('kd-set-kstyle').value = kdStyle.k.style;
+    document.getElementById('kd-set-dcolor').value = kdStyle.d.color;
+    document.getElementById('kd-set-dwidth').value = kdStyle.d.width;
+    document.getElementById('kd-set-dstyle').value = kdStyle.d.style;
+    ['overbought', 'midline', 'oversold'].forEach(key => {
+        document.getElementById(`kd-set-${key}-on`).checked = kdRefLines[key].visible;
+        document.getElementById(`kd-set-${key}-value`).value = kdRefLines[key].value;
+        document.getElementById(`kd-set-${key}-color`).value = kdRefLines[key].color;
+        const fillEl = document.getElementById(`kd-set-${key}-fillcolor`);
+        if (fillEl) fillEl.value = kdRefLines[key].fillColor || kdRefLines[key].color;   // V80
+    });
+    document.getElementById('kd-settings-modal').style.display = 'flex';
+}
+function closeKdSettings() { document.getElementById('kd-settings-modal').style.display = 'none'; }
+function saveKdSettings() {
+    kdParams = {
+        n: parseInt(document.getElementById('kd-set-n').value) || 9,
+        k: parseInt(document.getElementById('kd-set-k').value) || 3,
+        d: parseInt(document.getElementById('kd-set-d').value) || 3
+    };
+    kdStyle = {
+        k: { color: document.getElementById('kd-set-kcolor').value, width: parseFloat(document.getElementById('kd-set-kwidth').value) || 1, style: document.getElementById('kd-set-kstyle').value },
+        d: { color: document.getElementById('kd-set-dcolor').value, width: parseFloat(document.getElementById('kd-set-dwidth').value) || 1, style: document.getElementById('kd-set-dstyle').value }
+    };
+    ['overbought', 'midline', 'oversold'].forEach(key => {
+        const fillEl = document.getElementById(`kd-set-${key}-fillcolor`);
+        kdRefLines[key] = {
+            visible: document.getElementById(`kd-set-${key}-on`).checked,
+            value: parseFloat(document.getElementById(`kd-set-${key}-value`).value) || 0,
+            color: document.getElementById(`kd-set-${key}-color`).value,
+            width: kdRefLines[key].width, style: kdRefLines[key].style,
+            // V82 修正：midline 沒有填色欄位，fillEl 會是 null，過去這裡會讓 fillColor 停留在 undefined，
+            // 而 Firebase 的 set() 不允許物件裡任何一層有 undefined，寫入時會直接同步拋出例外，
+            // 讓整個儲存函式在跑到 rebuildSubPanes()/closeKdSettings() 之前就中斷——這才是「按鈕按下去沒反應」的真正原因。
+            // 沒有填色欄位時，退回用線條本身的顏色頂著，確保這個屬性永遠不會是 undefined。
+            fillColor: fillEl ? fillEl.value : (kdRefLines[key].fillColor || document.getElementById(`kd-set-${key}-color`).value)
+        };
+    });
+    LS.set('wr_kdParams', kdParams);
+    LS.set('wr_kdStyle', kdStyle);
+    LS.set('wr_kdRefLines', kdRefLines);
+    /* V81 修正：儲存按鈕「按下去沒反應」的成因，是 rebuildSubPanes() 裡如果有任何一步拋出例外
+       （例如底層圖表庫在重建窗格時發生某種錯誤），整個 saveKdSettings() 會在跑到 closeKdSettings()
+       之前就中斷，視窗因此卡住不會關閉，看起來就像「按了沒用」。設定值其實已經存進 localStorage了，
+       只是畫面沒有跟著關閉/重繪。改成不管重繪這一步是否成功，都保證視窗一定會關閉，並且把實際
+       錯誤內容印到 console，下次如果再發生，才能看到真正的錯誤訊息去追根本原因。 */
+    try {
+        rebuildSubPanes();
+    } catch (e) {
+        console.error('KD設定儲存後重繪失敗，但設定值已儲存:', e);
+    }
+    closeKdSettings();
+}
+/* ---- V69：MACD 設定視窗 ---- */
+function openMacdSettings() {
+    document.getElementById('macd-set-fast').value = macdParams.fast;
+    document.getElementById('macd-set-slow').value = macdParams.slow;
+    document.getElementById('macd-set-signal').value = macdParams.signal;
+    document.getElementById('macd-set-macdcolor').value = macdStyle.macd.color;
+    document.getElementById('macd-set-macdwidth').value = macdStyle.macd.width;
+    document.getElementById('macd-set-macdstyle').value = macdStyle.macd.style;
+    document.getElementById('macd-set-sigcolor').value = macdStyle.signal.color;
+    document.getElementById('macd-set-sigwidth').value = macdStyle.signal.width;
+    document.getElementById('macd-set-sigstyle').value = macdStyle.signal.style;
+    document.getElementById('macd-set-histup').value = macdStyle.histUp;
+    document.getElementById('macd-set-histdown').value = macdStyle.histDown;
+    document.getElementById('macd-set-histturn').value = macdStyle.histTurn;
+    document.getElementById('macd-set-osccolor').value = macdStyle.oscColor;
+    document.getElementById('macd-settings-modal').style.display = 'flex';
+}
+function closeMacdSettings() { document.getElementById('macd-settings-modal').style.display = 'none'; }
+function saveMacdSettings() {
+    macdParams = {
+        fast: parseInt(document.getElementById('macd-set-fast').value) || 12,
+        slow: parseInt(document.getElementById('macd-set-slow').value) || 26,
+        signal: parseInt(document.getElementById('macd-set-signal').value) || 9
+    };
+    macdStyle = {
+        macd: { color: document.getElementById('macd-set-macdcolor').value, width: parseFloat(document.getElementById('macd-set-macdwidth').value) || 1, style: document.getElementById('macd-set-macdstyle').value },
+        signal: { color: document.getElementById('macd-set-sigcolor').value, width: parseFloat(document.getElementById('macd-set-sigwidth').value) || 1, style: document.getElementById('macd-set-sigstyle').value },
+        histUp: document.getElementById('macd-set-histup').value,
+        histDown: document.getElementById('macd-set-histdown').value,
+        histTurn: document.getElementById('macd-set-histturn').value,
+        oscColor: document.getElementById('macd-set-osccolor').value
+    };
+    LS.set('wr_macdParams', macdParams);
+    LS.set('wr_macdStyle', macdStyle);
+    try {
+        rebuildSubPanes();
+    } catch (e) {
+        console.error('MACD設定儲存後重繪失敗，但設定值已儲存:', e);
+    }
+    closeMacdSettings();
+}
+
 function renderMaControls() {
     const legendContainer = document.getElementById('ma-legend-container');
     let html = '';
@@ -979,6 +1498,10 @@ function renderMaControls() {
         html += `<label class="ma-item" style="color:${cfg.color}"><input type="checkbox" id="ma-check-${idx}" ${cfg.visible?'checked':''} onchange="toggleMA(${idx})"><span id="ma-label-${idx}">MA${cfg.period}</span></label>`;
     });
     html += `<label class="ma-item" style="color:${vwmaConfig.color}"><input type="checkbox" id="vwma-check" ${vwmaConfig.visible?'checked':''} onchange="toggleVwma()"><span>VWMA</span></label>`;
+    html += `<label class="ma-item" style="color:#ffca28"><input type="checkbox" id="ind-kd-check" ${kdVisible?'checked':''} onchange="toggleIndicatorPane('kd')"><span>KD</span></label>`;
+    html += `<label class="ma-item" style="color:#2962ff"><input type="checkbox" id="ind-macd-check" ${macdVisible?'checked':''} onchange="toggleIndicatorPane('macd')"><span>MACD</span></label>`;
+    html += `<label class="ma-item" style="color:${bigMoveConfig.upColor}"><input type="checkbox" id="ind-bigmove-check" ${bigMoveEnabled?'checked':''} onchange="toggleBigMove()"><span>漲跌標記</span></label>` +
+        `<button class="pane-gear-btn" style="margin-left:-6px" onclick="openBigMoveSettings()" title="設定參數">${GEAR_SVG}</button>`;
     html += `<button class="ma-eye-btn${maHiddenSnapshot ? ' hidden-state' : ''}" id="ma-eye-btn" onclick="toggleAllIndicators()" title="${maHiddenSnapshot ? '顯示指標（回復原本的勾選）' : '暫時隱藏所有指標'}">${maEyeIconSvg()}</button>`;
     html += `<button class="ma-sync-btn" id="ma-sync-btn" onclick="toggleMASync()" title="開啟：日/週/月共用同一組勾選狀態；關閉：各週期可各自勾選不同均線">${maSyncTF ? '週期同步:開' : '週期同步:關'}</button>`;
     html += `<button class="settings-btn" onclick="openSettings()" title="設定參數"><svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></button>`;
@@ -992,6 +1515,26 @@ function renderMaControls() {
     });
     document.getElementById('ma-input-container-left').innerHTML = leftHtml;
     document.getElementById('ma-input-container-right').innerHTML = rightHtml;
+    repositionIndicatorLegendFixed();   // V83：均線列的內容變了（可能換行），KD/MACD圖例的位置要跟著重新校正
+}
+/* V83 修正：#indicator-legend-fixed 原本用寫死的 top:70px，這個數字是假設上面那排勾選框
+   （MA/VWMA/KD/MACD...）永遠只有一行。但這排是 flex-wrap，內容一多（例如這次新增的漲跌標記
+   勾選框）就會自動換成兩行，寫死的70px就會被那排勾選框蓋住，變成點不到齒輪按鈕。
+   改成每次這排勾選框的內容變動後，直接量測它實際佔用的高度，動態算出圖例該放在哪裡——
+   這是一般的DOM同步量測，不像先前圖表窗格高度那樣有非同步時機問題，可以放心呼叫。 */
+function repositionIndicatorLegendFixed() {
+    const toolbar = document.querySelector('.top-toolbar-row');
+    const ohlcInfo = document.getElementById('ohlc-info');
+    const legend = document.getElementById('indicator-legend-fixed');
+    if (!toolbar || !legend) return;
+    /* V84 修正：上一版只量了「均線/KD/MACD那排勾選框」(.top-toolbar-row)的高度，
+       完全沒考慮到中間還有一條 OHLC資訊列(#ohlc-info，顯示開高低收的那行)夾在中間——
+       如果OHLC資訊列本身的位置比算出來的圖例位置更低，KD/MACD圖例就會蓋到開高低收上面。
+       改成同時考慮兩者，取「比較低的那個」的底部，圖例才會確實排在兩者都下方。 */
+    const toolbarBottom = toolbar.offsetTop + toolbar.offsetHeight;
+    const ohlcBottom = ohlcInfo ? (ohlcInfo.offsetTop + ohlcInfo.offsetHeight) : 0;
+    const bottom = Math.max(toolbarBottom, ohlcBottom);
+    legend.style.top = (bottom + 6) + 'px';
 }
 
 function initCharts() {
@@ -1124,6 +1667,7 @@ function initCharts() {
     compareChart[2].subscribeCrosshairMove(param => onCompareCrosshairMove(2, param));
 
     window.addEventListener('resize', resizeAllCharts);
+    window.addEventListener('resize', repositionIndicatorLegendFixed);   // V83
 
     const today = new Date(), past = new Date();
     past.setDate(today.getDate() - 90);
@@ -1168,7 +1712,11 @@ function initCharts() {
 
     // V24：主圖十字準星移動時，左上角顯示該根K棒的開高低收與成交量
     mainChart.subscribeCrosshairMove(param => {
-        if (!param || !param.time) { updateOhlcInfo(displayData.length ? displayData[displayData.length - 1] : null); return; }
+        if (!param || !param.time) {
+            updateOhlcInfo(displayData.length ? displayData[displayData.length - 1] : null);
+            updateIndicatorLegends(null);   // V69
+            return;
+        }
         const bar = param.seriesData ? param.seriesData.get(mainSeries) : null;
         if (bar) {
             let t = param.time;
@@ -1176,11 +1724,13 @@ function initCharts() {
             const match = displayData.find(d => d.time === t);
             updateOhlcInfo({ time: t, open: bar.open, high: bar.high, low: bar.low, close: bar.close, volume: match ? match.volume : undefined });
         }
+        updateIndicatorLegends(param);   // V69：KD/MACD 副圖的數值圖例跟著游標更新
     });
 
     initDrawingTools();
     applyPriceScaleMode();        // V49：套用記住的 A / L 狀態
     watchManualPriceScaleDrag();  // V49：拖動價格軸時自動關閉 A
+    rebuildSubPanes();            // V68：套用記住的 KD/MACD 顯示狀態
 }
 
 /* V24：左上角 開高低收／成交量 資訊列 */
@@ -1227,7 +1777,7 @@ function updateCompareOhlcInfo(n, timeStr) {
 function updateOhlcInfo(bar) {
     const el = document.getElementById('ohlc-info');
     if (!el) return;
-    if (!bar) { el.innerHTML = ''; return; }
+    if (!bar) { el.innerHTML = ''; repositionIndicatorLegendFixed(); return; }
     const ch = computeChange(displayData, bar);   // V35
     const up = ch.up;
     const color = up ? '#ef232a' : '#26a69a';
@@ -1243,6 +1793,12 @@ function updateOhlcInfo(bar) {
         `<span style="color:${color}"><span class="oi-label" style="color:${color}">收</span><span class="oi-val">${bar.close.toFixed(2)}</span></span>` +
         `<span style="color:${color}"><span class="oi-label" style="color:${color}">幅</span><span class="oi-val">${up?'+':''}${pct}%</span></span>` +
         `<span><span class="oi-label">量</span><span class="oi-val">${volTxt}</span></span>`;
+    /* V85 修正：上一版的重新定位只掛在 renderMaControls() 上，但那通常只在頁面剛載入、
+       #ohlc-info 都還是空的時候執行過一次；真正讓開高低收那行「長出實際高度」的是這個函式
+       (updateOhlcInfo)，每次換股/游標移動都會重新產生內容，卻從來沒有觸發重新定位，
+       導致KD/MACD圖例的位置一直停留在「開高低收還是空的」那個當下算出來的舊位置，
+       換股後有了真正的內容，兩者當然就疊在一起。改成每次這裡的內容更新完，都重新校正一次位置。 */
+    repositionIndicatorLegendFixed();
 }
 
 /* ══════════ V27：自選股 ══════════ */
@@ -1481,6 +2037,11 @@ function observeChartResize() {
         if (!c.clientWidth || !c.clientHeight) return;
         if (typeof mainChart !== 'undefined' && mainChart) mainChart.resize(c.clientWidth, c.clientHeight);
         if (typeof drawLayers !== 'undefined' && drawLayers.main) drawLayers.main.resize();
+        /* V72 修正：視窗大小改變時，圖例位置沒有跟著移動。原因跟先前齒輪消失是同一類問題——
+           chart.resize() 呼叫下去，窗格的實際高度重新分配是函式庫内部非同步處理的，
+           緊接著同步呼叫 paneSize() 拿到的可能還是「resize之前」的舊高度。
+           改成透過 requestAnimationFrame 延後一格再重新定位，讓函式庫先把新的窗格高度算完。 */
+        if (typeof repositionPaneLegends === 'function') requestAnimationFrame(() => repositionPaneLegends());
     });
     chartResizeObserver.observe(c);
 }
@@ -1925,6 +2486,7 @@ function applyPriceData(fit = true) {
         });
         vwmaConfig.series.setData(calculateVWMA(displayData, vwmaConfig.period, vwmaConfig.source, vwmaConfig.offset));   // V28
         vwmaConfig.series.applyOptions({ color: vwmaConfig.color, visible: vwmaConfig.visible, lineWidth: vwmaConfig.width || 1 });
+        applySubPaneData();   // V68：換股/換週期/還原股價切換時，KD、MACD 副圖也要跟著重算
         msgEl.style.display = 'none';
         if (fit) {
             // V53：有先前的縮放比例就沿用，第一次載入（沒有比例可沿用）才用 fitContent
@@ -2053,6 +2615,159 @@ let activeDrawLayer = null;   // 目前正在操作（有選取圖形/啟用工�
 function DL(key) { return drawLayers[key]; }
 
 /* cfg: { key, canvasId, containerId, toolbarId, getChart, getSeries, getData, getSymbol, storagePrefix } */
+/* V73：在主圖目前可視範圍內找出最高、最低的那根K棒，在其上方/下方標示價格數字 */
+function drawVisibleHighLow(L) {
+    const data = L.data;
+    if (!data || !data.length) return;
+    let range;
+    try { range = L.chart.timeScale().getVisibleLogicalRange(); } catch (e) { return; }
+    if (!range) return;
+    const from = Math.max(0, Math.floor(range.from));
+    const to = Math.min(data.length - 1, Math.ceil(range.to));
+    if (from > to) return;
+    let hiIdx = from, loIdx = from;
+    for (let i = from; i <= to; i++) {
+        if (data[i].high > data[hiIdx].high) hiIdx = i;
+        if (data[i].low < data[loIdx].low) loIdx = i;
+    }
+    const hiP = L.toPixel({ logical: hiIdx, price: data[hiIdx].high });
+    const loP = L.toPixel({ logical: loIdx, price: data[loIdx].low });
+    const dctx = L.dctx;
+    dctx.save();
+    dctx.font = 'bold 11px "Segoe UI", monospace';
+    dctx.fillStyle = '#ffffff';
+    dctx.textAlign = 'center';
+    if (hiP) {
+        dctx.textBaseline = 'bottom';
+        dctx.fillText(data[hiIdx].high.toFixed(2), hiP.x, hiP.y - 4);
+    }
+    if (loP) {
+        dctx.textBaseline = 'top';
+        dctx.fillText(data[loIdx].low.toFixed(2), loP.x, loP.y + 4);
+    }
+    dctx.restore();
+}
+
+/* V83：單日漲跌幅超過門檻時，在K棒上方(大漲)/下方(大跌)標示符號，可開關、可調門檻、可選符號、可調顏色。
+   漲跌幅算法跟既有的 computeChange() 用同一個公式（以前一根收盤價為基準，第一根沒有前一根時退回開盤價），
+   確保這裡顯示的百分比跟OHLC資訊列、法人集中度等其他地方的算法一致。 */
+let bigMoveEnabled = LS.get('wr_bigMoveEnabled', false);
+let bigMoveConfig = Object.assign({
+    threshold: 5,          // 大漲跌門檻(%)——第一級
+    symbol: 'triangle',    // triangle | arrow | circle | diamond
+    upColor: '#ff5252',    // 大漲標記顏色
+    downColor: '#00e676',  // 大跌標記顏色
+    showDown: true,        // 是否也標示大跌（對稱功能，預設開啟，可關閉只看大漲）
+    // V86：第二級門檻（中漲跌），範圍是「threshold2 <= |漲跌幅| < threshold」，
+    // 上限自動跟著第一級門檻走，不用另外手動維護兩個門檻的大小關係
+    threshold2: 3,
+    symbol2: 'circle',
+    upColor2: '#ff9e80',
+    downColor2: '#69f0ae'
+}, LS.get('wr_bigMoveConfig', {}));
+
+function drawMarkerShape(dctx, x, anchorY, symbol, color, dir) {
+    /* V84 修正：
+       1. 尺寸加大（原本7 -> 9）
+       2. 方向反過來——原本『上方的箭頭往上、下方的往下』，畫起來像是遠離K棒；
+          改成尖端指向K棒本身（上方的往下指、下方的往上指），閱讀起來更像是「指出這根K棒」。
+       anchorY 是形狀「尖端」該對齊的Y座標（呼叫端已經把跟K棒的間距算好），
+       形狀主體往遠離K棒的方向延伸。dir='up' 表示畫在K棒上方(大漲)，形狀往上延伸、尖端朝下指向K棒；
+       dir='down' 表示畫在K棒下方(大跌)，形狀往下延伸、尖端朝上指向K棒。 */
+    const s = 9;
+    const sign = dir === 'up' ? -1 : 1;   // 主體延伸方向：往上(負)或往下(正)
+    dctx.save();
+    dctx.fillStyle = color;
+    dctx.strokeStyle = color;
+    if (symbol === 'arrow') {
+        const tailY = anchorY + sign * s * 1.7;
+        dctx.lineWidth = 2.5;
+        dctx.beginPath(); dctx.moveTo(x, tailY); dctx.lineTo(x, anchorY + sign * s * 0.6); dctx.stroke();
+        dctx.beginPath();
+        dctx.moveTo(x, anchorY); dctx.lineTo(x - s * 0.7, anchorY + sign * s * 0.9); dctx.lineTo(x + s * 0.7, anchorY + sign * s * 0.9);
+        dctx.closePath(); dctx.fill();
+    } else if (symbol === 'circle') {
+        dctx.beginPath(); dctx.arc(x, anchorY + sign * s * 0.7, s * 0.7, 0, Math.PI * 2); dctx.fill();
+    } else if (symbol === 'diamond') {
+        const cy = anchorY + sign * s * 0.85;
+        dctx.beginPath();
+        dctx.moveTo(x, cy - s * 0.85); dctx.lineTo(x + s * 0.85, cy); dctx.lineTo(x, cy + s * 0.85); dctx.lineTo(x - s * 0.85, cy);
+        dctx.closePath(); dctx.fill();
+    } else {   // triangle（預設）：尖端在 anchorY，底邊在遠離K棒那一側
+        dctx.beginPath();
+        dctx.moveTo(x, anchorY);
+        dctx.lineTo(x - s * 0.85, anchorY + sign * s * 1.3);
+        dctx.lineTo(x + s * 0.85, anchorY + sign * s * 1.3);
+        dctx.closePath(); dctx.fill();
+    }
+    dctx.restore();
+}
+function drawBigMoveMarkers(L) {
+    if (!bigMoveEnabled) return;
+    const data = L.data;
+    if (!data || !data.length) return;
+    let range;
+    try { range = L.chart.timeScale().getVisibleLogicalRange(); } catch (e) { return; }
+    if (!range) return;
+    const from = Math.max(0, Math.floor(range.from));
+    const to = Math.min(data.length - 1, Math.ceil(range.to));
+    for (let i = from; i <= to; i++) {
+        const bar = data[i];
+        const base = (i > 0 && data[i - 1].close) ? data[i - 1].close : bar.open;   // 跟 computeChange() 同一套基準邏輯
+        if (!base) continue;
+        const pct = (bar.close - base) / base * 100;
+        if (pct >= bigMoveConfig.threshold) {
+            const p = L.toPixel({ logical: i, price: bar.high });
+            if (p) drawMarkerShape(L.dctx, p.x, p.y - 11, bigMoveConfig.symbol, bigMoveConfig.upColor, 'up');
+        } else if (pct >= bigMoveConfig.threshold2) {
+            // V86：第二級（中漲），介於 threshold2 跟 threshold 之間
+            const p = L.toPixel({ logical: i, price: bar.high });
+            if (p) drawMarkerShape(L.dctx, p.x, p.y - 11, bigMoveConfig.symbol2, bigMoveConfig.upColor2, 'up');
+        } else if (bigMoveConfig.showDown && pct <= -bigMoveConfig.threshold) {
+            const p = L.toPixel({ logical: i, price: bar.low });
+            if (p) drawMarkerShape(L.dctx, p.x, p.y + 11, bigMoveConfig.symbol, bigMoveConfig.downColor, 'down');
+        } else if (bigMoveConfig.showDown && pct <= -bigMoveConfig.threshold2) {
+            // V86：第二級（中跌）
+            const p = L.toPixel({ logical: i, price: bar.low });
+            if (p) drawMarkerShape(L.dctx, p.x, p.y + 11, bigMoveConfig.symbol2, bigMoveConfig.downColor2, 'down');
+        }
+    }
+}
+function toggleBigMove() {
+    bigMoveEnabled = document.getElementById('ind-bigmove-check').checked;
+    LS.set('wr_bigMoveEnabled', bigMoveEnabled);
+    if (typeof DL === 'function') { const L = DL('main'); if (L) L.redraw(); }
+}
+function openBigMoveSettings() {
+    document.getElementById('bigmove-set-threshold').value = bigMoveConfig.threshold;
+    document.getElementById('bigmove-set-symbol').value = bigMoveConfig.symbol;
+    document.getElementById('bigmove-set-upcolor').value = bigMoveConfig.upColor;
+    document.getElementById('bigmove-set-downcolor').value = bigMoveConfig.downColor;
+    document.getElementById('bigmove-set-threshold2').value = bigMoveConfig.threshold2;   // V86
+    document.getElementById('bigmove-set-symbol2').value = bigMoveConfig.symbol2;
+    document.getElementById('bigmove-set-upcolor2').value = bigMoveConfig.upColor2;
+    document.getElementById('bigmove-set-downcolor2').value = bigMoveConfig.downColor2;
+    document.getElementById('bigmove-set-showdown').checked = bigMoveConfig.showDown;
+    document.getElementById('bigmove-settings-modal').style.display = 'flex';
+}
+function closeBigMoveSettings() { document.getElementById('bigmove-settings-modal').style.display = 'none'; }
+function saveBigMoveSettings() {
+    bigMoveConfig = {
+        threshold: Math.abs(parseFloat(document.getElementById('bigmove-set-threshold').value)) || 5,
+        symbol: document.getElementById('bigmove-set-symbol').value,
+        upColor: document.getElementById('bigmove-set-upcolor').value,
+        downColor: document.getElementById('bigmove-set-downcolor').value,
+        threshold2: Math.abs(parseFloat(document.getElementById('bigmove-set-threshold2').value)) || 3,   // V86
+        symbol2: document.getElementById('bigmove-set-symbol2').value,
+        upColor2: document.getElementById('bigmove-set-upcolor2').value,
+        downColor2: document.getElementById('bigmove-set-downcolor2').value,
+        showDown: document.getElementById('bigmove-set-showdown').checked
+    };
+    LS.set('wr_bigMoveConfig', bigMoveConfig);
+    closeBigMoveSettings();
+    if (typeof DL === 'function') { const L = DL('main'); if (L) L.redraw(); }
+}
+
 function createDrawingLayer(cfg) {
     const canvas = document.getElementById(cfg.canvasId);
     const dctx = canvas.getContext('2d');
@@ -2290,7 +3005,13 @@ function createDrawingLayer(cfg) {
        所以另外獨立一個函式，在 L.redraw() 裡於 restore() 之後才呼叫。 */
     L.renderHlineBadge = function (d) {
         const y = L.series.priceToCoordinate(d.price);
-        if (y === null || y < -20 || y > canvas.height + 20) return;
+        // V76：跟 redraw() 的裁切修正同一個原因——這裡也要用主圖窗格自己的高度當作邊界，
+        // 不能再用整個 canvas 的高度，否則價格徽章可能畫到 KD/MACD 窗格的座標軸上去。
+        let boundHeight = canvas.height;
+        if (L.key === 'main' && typeof mainChart !== 'undefined' && mainChart && typeof mainChart.paneSize === 'function') {
+            try { boundHeight = Math.min(canvas.height, mainChart.paneSize(0).height); } catch (e) {}
+        }
+        if (y === null || y < -20 || y > boundHeight + 20) return;
         const plotEdge = L.getPlotRightEdge();
         const axisW = canvas.width - plotEdge;
         if (axisW < 20) return;   // 座標軸寬度還沒量出來時先不畫，避免擠成一團
@@ -2435,9 +3156,19 @@ function createDrawingLayer(cfg) {
            所以線段只要延伸到最右邊就會蓋在座標軸的數字上。
            這裡改成統一在畫布上設一個「只到K線繪圖區右緣」的裁切範圍，
            所有圖形都不會再溢出到座標軸。 */
+        /* V76 修正：這個畫圖用的 canvas 蓋住整個 #chart-container，在還沒有 KD/MACD 副圖窗格之前，
+           canvas.height 剛好就等於主圖窗格自己的高度，垂直方向不設限也沒問題。但加入 KD/MACD
+           窗格後，主圖窗格只佔 canvas 的「上面一部分」，canvas.height 卻還是包含了下面 KD/MACD
+           窗格的高度——導致任何算出來的Y座標只要落在這個範圍內（不管是不是真的在主圖窗格裡），
+           都會被畫出來，這正是費波那契、最高/最低點標示會「跑到副圖去」的原因。
+           修法：垂直方向的裁切也要收斂到「主圖窗格自己實際的高度」，不能再用整個canvas的高度。 */
+        let clipHeight = canvas.height;
+        if (L.key === 'main' && typeof mainChart !== 'undefined' && mainChart && typeof mainChart.paneSize === 'function') {
+            try { clipHeight = Math.min(canvas.height, mainChart.paneSize(0).height); } catch (e) {}
+        }
         dctx.save();
         dctx.beginPath();
-        dctx.rect(0, 0, L.getPlotRightEdge(), canvas.height);
+        dctx.rect(0, 0, L.getPlotRightEdge(), clipHeight);
         dctx.clip();
         L.drawings.forEach(d => L.renderShape(d, false, d.id === L.selectedId));
         if (L.activeTool && L.activeTool !== 'hline' && L.pendingPoint && L.previewPoint) {
@@ -2446,6 +3177,7 @@ function createDrawingLayer(cfg) {
             if (L.activeTool === 'fib') preview.fibLevels = cloneFibLevels(toolDefaults.fib && toolDefaults.fib.fibLevels);   // V58
             L.renderShape(preview, true, false);
         }
+        if (L.key === 'main') { drawVisibleHighLow(L); drawBigMoveMarkers(L); }   // V73/V83
         dctx.restore();
         // V59：水平線的價格徽章要畫在座標軸上，必須在裁切範圍「之外」，所以放在 restore() 之後
         L.drawings.forEach(d => { if (d.type === 'hline') L.renderHlineBadge(d); });
